@@ -1,1 +1,110 @@
 /* Quadro, ficha da candidatura e formulário (fase 7, parte A) */
+
+/* Topo do quadro: título, busca e resumo */
+.topo-quadro { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-bottom: 6px }
+.busca-quadro { position: relative; flex: 1 1 260px; max-width: 420px }
+.busca-quadro svg { position: absolute; left: 11px; top: 50%; translate: 0 -50%; width: 18px; height: 18px; color: var(--apagado); pointer-events: none }
+.busca-quadro input { padding-left: 36px }
+.resumo-quadro { margin: 0; color: var(--apagado); font-size: .9rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+
+/* As pastas lado a lado; no celular, o quadro rola dentro de si (a página não) */
+.quadro { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(188px, 1fr); gap: 12px; overflow-x: auto;
+  padding-bottom: 10px; scroll-snap-type: x proximity; overscroll-behavior-x: contain }
+.pasta-etapa { scroll-snap-align: start; display: flex; flex-direction: column; min-height: 140px; padding: 12px }
+.pasta-etapa > .orelha { display: flex; align-items: center; gap: 8px }
+.orelha .contagem { background: var(--ficha); color: var(--texto); border-radius: 99px; padding: 0 7px; font-size: .72rem; letter-spacing: 0 }
+.pasta-vazia { color: var(--apagado); font-size: .86rem; margin: 6px 2px; flex: 1 }
+.pasta-etapa.alvo { outline: 2px dashed var(--verde); outline-offset: -2px; background: #16292e }
+.area-quadro.arrastando .pasta-etapa:not(.alvo) .fichas { opacity: .85 }
+
+/* As fichas dentro da pasta. O link da empresa cobre a ficha toda (clicar em qualquer ponto abre);
+   o botão "Mover" fica por cima dele. */
+.fichas { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px }
+.ficha { position: relative; background: var(--ficha); border: 1px solid var(--linha); border-left: 3px solid var(--verde);
+  border-radius: 6px; padding: 10px 12px 8px; display: grid; gap: 2px; cursor: grab; transition: border-color .15s, translate .15s }
+.ficha:hover { border-color: var(--verde); translate: 0 -1px }
+.ficha:focus-within { outline: 2px solid var(--verde); outline-offset: 2px }
+.ficha.arrastando { opacity: .45; cursor: grabbing }
+.ficha.parada { border-left-color: var(--ambar); background: linear-gradient(90deg, var(--ambar-fundo), var(--ficha) 70%) }
+.ficha.parada:hover { border-color: var(--ambar) }
+.ficha-empresa { font-size: 1rem; overflow-wrap: anywhere }
+.ficha-link { color: var(--texto-forte); text-decoration: none }
+.ficha-link:focus-visible { outline: none }
+.ficha-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit }
+.ficha-vaga { margin: 0; color: var(--texto); font-size: .9rem; overflow-wrap: anywhere }
+.ficha-dias { margin: 4px 0 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--apagado); font-size: .8rem }
+.ficha-dias svg { width: 14px; height: 14px }
+.ficha.parada .ficha-dias { color: var(--ambar) }
+.ficha .mover { position: relative; z-index: 1; justify-self: end; padding: 6px 8px; font-size: .8rem; margin-top: 2px }
+.ficha .mover svg { width: 15px; height: 15px }
+
+/* Encerradas: recolhível, embaixo */
+.encerradas { margin-top: 28px }
+.encerradas > summary { cursor: pointer; font: 700 1.05rem var(--f-titulo); color: var(--texto-forte); display: inline-flex; align-items: center; gap: 10px; padding: 6px 0 }
+.encerradas > summary .contagem { background: var(--ficha); color: var(--apagado); border-radius: 99px; padding: 0 9px; font: 700 .8rem/1.6 var(--f-texto) }
+.quadro-encerradas .ficha { border-left-color: var(--apagado) }
+.quadro-encerradas .pasta-etapa { background: #101c20 }
+.quadro-encerradas .pasta-etapa > .orelha { background: #101c20; color: var(--apagado) }
+
+/* Estado vazio e "não encontrada" */
+.quadro-vazio, .nao-encontrada { max-width: 560px; margin: 40px auto 0; padding: 28px; display: grid; gap: 12px; justify-items: start }
+.quadro-vazio p, .nao-encontrada p { margin: 0; color: var(--apagado) }
+.vazio .botao { margin-top: 8px }
+
+/* Ficha da candidatura */
+.voltar { margin: -6px 0 10px -10px }
+.cabeca-candidatura { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; justify-content: space-between }
+.titulo-candidatura { min-width: 0 }
+.titulo-candidatura h1 { overflow-wrap: anywhere }
+.vaga-candidatura { margin: 2px 0 0; color: var(--texto); font-size: 1.05rem; overflow-wrap: anywhere }
+.acoes-candidatura { display: flex; flex-wrap: wrap; gap: 8px }
+.detalhe-candidatura { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 18px; margin-top: 10px; align-items: start }
+.etapa-atual { grid-column: 1 / -1; border-left: 3px solid var(--verde); outline: none }
+.nome-etapa { margin: 0; font: 700 1.6rem/1.2 var(--f-titulo); color: var(--verde-claro) }
+.nome-etapa.final { color: var(--texto) }
+.desde-etapa { margin: 6px 0 0; display: flex; align-items: center; gap: 6px; color: var(--apagado); font-size: .9rem; flex-wrap: wrap }
+.desde-etapa svg { width: 16px; height: 16px }
+.lista-dados { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin: 0 }
+.lista-dados dt { color: var(--apagado); font-size: .88rem }
+.lista-dados dd { margin: 0; overflow-wrap: anywhere }
+.link-vaga { display: inline-flex; align-items: center; gap: 6px; word-break: break-all }
+.link-vaga svg { width: 14px; height: 14px }
+.sem-dado { color: var(--apagado); font-style: italic }
+.titulo-anotacoes { margin: 18px 0 6px; font-size: .95rem }
+.anotacoes { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
+p.sem-dado { margin: 0 }
+
+/* Linha do tempo do histórico */
+.linha-do-tempo { list-style: none; margin: 0; padding: 0 0 0 18px; border-left: 2px solid var(--linha); display: grid; gap: 16px }
+.linha-do-tempo li { position: relative }
+.linha-do-tempo li::before { content: ""; position: absolute; left: -25px; top: 6px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--pasta); border: 2px solid var(--verde) }
+.linha-do-tempo li:last-child::before { background: var(--verde) }
+.linha-do-tempo .passo { margin: 0; font-weight: 700; color: var(--texto-forte) }
+.linha-do-tempo time { color: var(--apagado); font-size: .86rem }
+.linha-do-tempo .observacao { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .92rem }
+
+/* Formulário */
+.titulo-form { margin-top: 4px }
+.sub-form { color: var(--apagado); margin: 4px 0 8px; font-size: .9rem }
+.formulario-candidatura { max-width: 860px; display: grid; gap: 6px }
+fieldset.grupo-form { border: 0; margin: 30px 0 0; padding: 18px; min-width: 0 }
+.grade-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px }
+.grade-form .largo { grid-column: 1 / -1 }
+.obrigatorio { color: var(--verde-claro) }
+.botoes-form { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap }
+
+/* Janelas */
+.janela-contexto { margin: -8px 0 14px; color: var(--apagado); overflow-wrap: anywhere }
+.campos-janela { display: grid; gap: 14px }
+dialog .erro { margin-top: 12px }
+
+@media (max-width: 720px) {
+  .detalhe-candidatura, .grade-form { grid-template-columns: minmax(0, 1fr) }
+  .acoes-candidatura { width: 100% }
+}
+@media (max-width: 520px) {
+  .quadro { grid-auto-columns: minmax(240px, 82%) }
+  .lista-dados { grid-template-columns: minmax(0, 1fr); gap: 2px }
+  .lista-dados dd { margin-bottom: 8px }
+}
