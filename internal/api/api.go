@@ -106,7 +106,7 @@ func verLembretes(servico *lembretes.Servico, log *slog.Logger) http.HandlerFunc
 // prazosDosLembretes: depois de quantos dias parada em cada etapa sai um lembrete (a tela mostra
 // a tabela sem repetir os números no JavaScript).
 func prazosDosLembretes(w http.ResponseWriter, _ *http.Request) {
-	responderJSON(w, http.StatusOK, lembretes.TabelaDePrazos())
+	responderJSON(w, http.StatusOK, lembretes.AsRegras())
 }
 
 func responderJSON(w http.ResponseWriter, status int, corpo any) {

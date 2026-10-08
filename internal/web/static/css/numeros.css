@@ -55,7 +55,7 @@
 .grupo-etapas + .grupo-etapas { margin-top: 16px }
 .grupo-etapas h3 { font: 700 .78rem/1.4 var(--f-texto); letter-spacing: .05em; text-transform: uppercase; color: var(--apagado); margin-bottom: 6px }
 .etapas-agora { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px }
-.etapas-agora li { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr) 2.5ch; gap: 10px; align-items: center }
+.etapas-agora li { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr) max-content; gap: 10px; align-items: center }
 .etapa-nome { overflow-wrap: anywhere; font-size: .92rem }
 .etapa-trilho { height: 8px; background: var(--fundo); border-radius: 4px; overflow: hidden }
 .etapa-barra { display: block; height: 100%; background: var(--verde); border-radius: 4px }

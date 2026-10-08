@@ -33,6 +33,20 @@ type PrazoDaEtapa struct {
 	Dias  int                `json:"dias"`
 }
 
+// Regras é o que a tela de lembretes mostra (GET /api/lembretes/prazos): os prazos e os números
+// das regras, todos daqui, para a tela nunca dizer uma coisa e o Go fazer outra.
+type Regras struct {
+	Prazos      []PrazoDaEtapa `json:"prazos"`
+	RepetirDias int            `json:"repetirDias"`
+	HoraInicio  int            `json:"horaInicio"`
+	HoraFim     int            `json:"horaFim"`
+}
+
+// AsRegras junta a tabela de prazos e os números das regras.
+func AsRegras() Regras {
+	return Regras{Prazos: TabelaDePrazos(), RepetirDias: RepetirDias, HoraInicio: HoraInicio, HoraFim: HoraFim}
+}
+
 // TabelaDePrazos devolve os prazos na ordem das etapas (candidaturas.Etapas), só as que têm
 // prazo. A tela lê daqui: os números ficam num lugar só, sem cópia no JavaScript.
 func TabelaDePrazos() []PrazoDaEtapa {

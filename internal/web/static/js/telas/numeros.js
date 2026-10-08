@@ -39,6 +39,9 @@ registrarTela('numeros', {
         fontes(n.porFonte),
       ),
     )
+    // No celular o gráfico rola: começa mostrando a semana atual (a última, à direita)
+    const rolagem = container.querySelector('.rolagem-grafico')
+    if (rolagem) rolagem.scrollLeft = rolagem.scrollWidth
   },
 })
 
@@ -165,7 +168,7 @@ function semanas(porSemana) {
   return pasta(
     'Envios por semana',
     '',
-    el('div', { class: 'rolagem-grafico' }, grafico),
+    el('div', { class: 'rolagem-grafico', tabindex: 0, 'aria-label': 'Gráfico de envios por semana (role para os lados)' }, grafico),
     el(
       'p',
       { class: 'nota' },

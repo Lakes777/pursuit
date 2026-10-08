@@ -9,7 +9,7 @@ registrarTela('lembretes', {
   titulo: 'Lembretes',
   async montar(container, params, ctx) {
     container.append(el('p', { class: 'vazio' }, 'Carregando os lembretes…'))
-    const [paradas, prazos] = await Promise.all([ctx.api('GET', '/api/lembretes'), ctx.api('GET', '/api/lembretes/prazos')])
+    const [paradas, regrasDaAPI] = await Promise.all([ctx.api('GET', '/api/lembretes'), ctx.api('GET', '/api/lembretes/prazos')])
     if (!ctx.atual(params.navegacao)) return
 
     trocar(
@@ -24,12 +24,12 @@ registrarTela('lembretes', {
           paradas.length === 0 ? 'Nada parado além do prazo.' : `${plural(paradas.length, 'candidatura parada', 'candidaturas paradas')} além do prazo.`,
         ),
       ),
-      el('div', { class: 'lembretes-grade' }, listaDeParadas(paradas, ctx.etapas), regras(prazos, ctx.etapas)),
+      el('div', { class: 'lembretes-grade' }, listaDeParadas(paradas, ctx.etapas, regrasDaAPI.repetirDias), regras(regrasDaAPI, ctx.etapas)),
     )
   },
 })
 
-function listaDeParadas(paradas, etapas) {
+function listaDeParadas(paradas, etapas, repetirDias) {
   const secao = el('section', { class: 'pasta paradas', 'aria-labelledby': 'secao-paradas' }, el('h2', { class: 'orelha', id: 'secao-paradas' }, 'Paradas agora'))
   if (paradas.length === 0) {
     secao.append(
@@ -40,7 +40,7 @@ function listaDeParadas(paradas, etapas) {
         el(
           'p',
           {},
-          'Nenhuma candidatura passou do prazo da etapa. Uma que já foi lembrada nos últimos 7 dias só volta a aparecer aqui quando completar a semana.',
+          `Nenhuma candidatura passou do prazo da etapa. Uma que já foi lembrada nos últimos ${repetirDias} dias só volta a aparecer aqui quando completar esse tempo.`,
         ),
       ),
     )
@@ -71,7 +71,7 @@ function listaDeParadas(paradas, etapas) {
   return secao
 }
 
-function regras(prazos, etapas) {
+function regras({ prazos, repetirDias, horaInicio, horaFim }, etapas) {
   const finais = etapas.filter((e) => e.final).map((e) => e.nome.toLowerCase())
   return el(
     'section',
@@ -80,9 +80,9 @@ function regras(prazos, etapas) {
     el(
       'ul',
       { class: 'regras' },
-      el('li', {}, 'Uma mensagem por dia, no máximo, pelo Telegram, juntando todas as paradas. Sai entre 9h e 21h (horário de Brasília), nunca de madrugada.'),
+      el('li', {}, `Uma mensagem por dia, no máximo, pelo Telegram, juntando todas as paradas. Sai entre ${horaInicio}h e ${horaFim}h (horário de Brasília), nunca de madrugada.`),
       el('li', {}, 'Os dias contam pelo calendário, não por horas: o que mudou às 18h de um dia completa 1 dia à meia-noite.'),
-      el('li', {}, 'Se a candidatura continuar parada, o lembrete se repete a cada 7 dias.'),
+      el('li', {}, `Se a candidatura continuar parada, o lembrete se repete a cada ${repetirDias} dias.`),
       el('li', {}, `Mudar de etapa recomeça a contagem. Etapas encerradas (${finais.join(', ')}) não são lembradas.`),
     ),
     el(

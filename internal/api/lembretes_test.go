@@ -13,9 +13,13 @@ func TestPrazosDosLembretes(t *testing.T) {
 
 	r := s.pedir(t, "GET", s.URL+"/api/lembretes/prazos", "")
 
-	prazos := decodificar[[]lembretes.PrazoDaEtapa](t, r.corpo)
+	regras := decodificar[lembretes.Regras](t, r.corpo)
+	prazos := regras.Prazos
 	if r.status != http.StatusOK || len(prazos) != len(lembretes.Prazos) {
 		t.Fatalf("r = %+v", r)
+	}
+	if regras.RepetirDias != lembretes.RepetirDias || regras.HoraInicio != lembretes.HoraInicio || regras.HoraFim != lembretes.HoraFim {
+		t.Errorf("regras = %+v", regras)
 	}
 	// Na ordem do processo, com o nome da tela e o mesmo número das regras
 	if p := prazos[0]; p.Etapa != candidaturas.Interesse || p.Nome != "Interesse" ||
