@@ -30,3 +30,17 @@ type EtapaHistorico struct {
 	Em            time.Time
 	Observacao    *string
 }
+
+type Sessao struct {
+	TokenHash []byte
+	UsuarioID int64
+	CriadaEm  time.Time
+	ExpiraEm  time.Time
+}
+
+type Usuario struct {
+	ID        int64
+	Nome      string
+	SenhaHash string
+	CriadoEm  time.Time
+}

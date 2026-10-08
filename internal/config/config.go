@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -14,6 +15,11 @@ type Config struct {
 	Endereco string
 	// BancoURL é a conexão com o Postgres (formato postgres://usuario:senha@host:porta/banco).
 	BancoURL string
+	// CookieSeguro: o cookie da sessão só vai por HTTPS. Ligado por padrão; desligar só no
+	// computador, onde não há HTTPS (PURSUIT_COOKIE_SEGURO=false).
+	CookieSeguro bool
+	// LoginPorMinuto: tentativas de login por minuto por IP.
+	LoginPorMinuto int
 }
 
 // Padrões para o compose.yaml da raiz (Postgres na porta 5435).
@@ -29,6 +35,16 @@ func Carregar(ler func(string) string) (Config, error) {
 		Endereco: valorOuPadrao(ler("PURSUIT_ENDERECO"), enderecoPadrao),
 		BancoURL: valorOuPadrao(ler("PURSUIT_BANCO_URL"), bancoPadrao),
 	}
+	seguro, err := strconv.ParseBool(valorOuPadrao(ler("PURSUIT_COOKIE_SEGURO"), "true"))
+	if err != nil {
+		return Config{}, errors.New("PURSUIT_COOKIE_SEGURO deve ser true ou false")
+	}
+	c.CookieSeguro = seguro
+	porMinuto, err := strconv.Atoi(valorOuPadrao(ler("PURSUIT_LOGIN_POR_MINUTO"), "10"))
+	if err != nil || porMinuto < 1 {
+		return Config{}, errors.New("PURSUIT_LOGIN_POR_MINUTO deve ser um número a partir de 1")
+	}
+	c.LoginPorMinuto = porMinuto
 	u, err := url.Parse(c.BancoURL)
 	if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" {
 		// Sem repetir o valor no erro: a URL traz a senha do banco

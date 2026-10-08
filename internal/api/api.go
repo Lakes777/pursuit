@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Lakes777/pursuit/internal/candidaturas"
+	"github.com/Lakes777/pursuit/internal/contas"
 )
 
 // Pinger é o pedaço do banco que a rota de saúde usa (o *pgxpool.Pool serve).
@@ -16,20 +17,37 @@ type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
+// Dependencias do servidor HTTP.
+type Dependencias struct {
+	Banco        Pinger
+	Candidaturas *candidaturas.Servico
+	Contas       *contas.Servico
+	Limite       *contas.Limite
+	// CookieSeguro: o cookie da sessão só vai por HTTPS (desligar só no computador, sem HTTPS)
+	CookieSeguro bool
+	Log          *slog.Logger
+}
+
 // Novo monta as rotas. Usa o roteador da biblioteca padrão (Go 1.22+), que já entende
-// método e parâmetros no caminho ("GET /api/candidaturas/{id}").
-func Novo(banco Pinger, servico *candidaturas.Servico, log *slog.Logger) http.Handler {
-	c := rotasDeCandidaturas{servico: servico, log: log}
+// método e parâmetros no caminho ("GET /api/candidaturas/{id}"). Tudo em /api pede login,
+// menos entrar e sair; /saude é pública (para o Docker e o Vigil).
+func Novo(d Dependencias) http.Handler {
+	c := rotasDeCandidaturas{servico: d.Candidaturas, log: d.Log}
+	s := rotasDeSessao{contas: d.Contas, limite: d.Limite, cookieSeguro: d.CookieSeguro, log: d.Log}
+	logado := s.exigirLogin
 	rotas := http.NewServeMux()
-	rotas.HandleFunc("GET /saude", saude(banco, log))
-	rotas.HandleFunc("GET /api/etapas", etapas)
-	rotas.HandleFunc("POST /api/candidaturas", c.criar)
-	rotas.HandleFunc("GET /api/candidaturas", c.listar)
-	rotas.HandleFunc("GET /api/candidaturas/{id}", c.buscar)
-	rotas.HandleFunc("PUT /api/candidaturas/{id}", c.editar)
-	rotas.HandleFunc("DELETE /api/candidaturas/{id}", c.apagar)
-	rotas.HandleFunc("POST /api/candidaturas/{id}/etapas", c.mudarEtapa)
-	return registrar(log, recuperar(log, rotas))
+	rotas.HandleFunc("GET /saude", saude(d.Banco, d.Log))
+	rotas.HandleFunc("POST /api/sessao", s.entrar)
+	rotas.HandleFunc("DELETE /api/sessao", s.sair)
+	rotas.HandleFunc("GET /api/sessao", logado(s.quemSou))
+	rotas.HandleFunc("GET /api/etapas", logado(etapas))
+	rotas.HandleFunc("POST /api/candidaturas", logado(c.criar))
+	rotas.HandleFunc("GET /api/candidaturas", logado(c.listar))
+	rotas.HandleFunc("GET /api/candidaturas/{id}", logado(c.buscar))
+	rotas.HandleFunc("PUT /api/candidaturas/{id}", logado(c.editar))
+	rotas.HandleFunc("DELETE /api/candidaturas/{id}", logado(c.apagar))
+	rotas.HandleFunc("POST /api/candidaturas/{id}/etapas", logado(c.mudarEtapa))
+	return registrar(d.Log, recuperar(d.Log, rotas))
 }
 
 // saude responde 200 com o banco no ar e 503 sem ele (para o Docker e o Vigil).

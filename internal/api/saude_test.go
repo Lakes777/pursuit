@@ -16,7 +16,7 @@ import (
 var semLog = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 func TestSaudeComOBancoDeVerdade(t *testing.T) {
-	servidor := httptest.NewServer(Novo(testebanco.Pool(t), nil, semLog))
+	servidor := httptest.NewServer(Novo(Dependencias{Banco: testebanco.Pool(t), Log: semLog}))
 	defer servidor.Close()
 
 	resposta, err := http.Get(servidor.URL + "/saude")
@@ -40,7 +40,7 @@ func (bancoFora) Ping(context.Context) error { return errors.New("conexão recus
 
 func TestSaudeSemBancoResponde503(t *testing.T) {
 	gravador := httptest.NewRecorder()
-	Novo(bancoFora{}, nil, semLog).ServeHTTP(gravador, httptest.NewRequest(http.MethodGet, "/saude", nil))
+	Novo(Dependencias{Banco: bancoFora{}, Log: semLog}).ServeHTTP(gravador, httptest.NewRequest(http.MethodGet, "/saude", nil))
 
 	if gravador.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status %d", gravador.Code)
@@ -52,7 +52,7 @@ func TestSaudeSemBancoResponde503(t *testing.T) {
 
 func TestSaudeSoAceitaGet(t *testing.T) {
 	gravador := httptest.NewRecorder()
-	Novo(bancoFora{}, nil, semLog).ServeHTTP(gravador, httptest.NewRequest(http.MethodPost, "/saude", nil))
+	Novo(Dependencias{Banco: bancoFora{}, Log: semLog}).ServeHTTP(gravador, httptest.NewRequest(http.MethodPost, "/saude", nil))
 
 	if gravador.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status %d", gravador.Code)

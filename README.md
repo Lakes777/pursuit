@@ -16,12 +16,12 @@ já está pronto.
 
 - [x] **1. Esqueleto:** Go com o roteador da biblioteca padrão, PostgreSQL com migrações (goose), `/saude`, testes com Testcontainers, CI com lint
 - [x] **2. Candidaturas:** cadastro com etapas (interesse, enviada, triagem, entrevista, técnica, proposta, contratado, recusada, desisti) e o histórico de cada mudança
-- [ ] **3. Login:** conta única com senha e sessão por cookie
+- [x] **3. Login:** conta única com senha (argon2id), sessão por cookie guardada no banco, limite de tentativas; toda rota de `/api` pede login
 - [ ] **4. Números:** funil por etapa, tempo até a resposta, taxa por fonte (LinkedIn, Gupy...)
 - [ ] **5. Lembretes:** uma goroutine em segundo plano avisa pelo Telegram as candidaturas paradas há dias
 - [ ] **6. Beacon:** um link curto por candidatura, com os cliques
 - [ ] **7. Interface:** página própria, com identidade visual
-- [ ] **8. Publicação:** imagem Docker só com o binário, numa VM da Oracle
+- [ ] **8. Publicação:** imagem Docker só com o binário, numa VM da Oracle. Atenção: atrás do Caddy todo pedido chega com o IP do proxy; o limite de login precisa confiar no `X-Forwarded-For` só quando a conexão vier do proxy
 
 ## Tecnologias
 
@@ -37,10 +37,11 @@ Precisa do Go 1.27 e do Docker. Para mudar o SQL, também do sqlc
 (`go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1`, depois `sqlc generate`).
 
 ```bash
-docker compose up -d          # Postgres na porta 5435
-go run ./cmd/pursuit          # API em http://127.0.0.1:8095 (as migrações rodam ao subir)
-curl 127.0.0.1:8095/saude     # {"banco":"ok","status":"ok"}
-go test -race ./...           # testes (sobem um Postgres próprio pelo Testcontainers)
+docker compose up -d                                         # Postgres na porta 5435
+go run ./cmd/pursuit definir-senha andre                     # cria a conta (pergunta a senha, escondida)
+PURSUIT_COOKIE_SEGURO=false go run ./cmd/pursuit             # API em http://127.0.0.1:8095 (sem HTTPS no computador)
+curl 127.0.0.1:8095/saude                                    # {"banco":"ok","status":"ok"}
+go test -race ./...                                          # testes (sobem um Postgres próprio pelo Testcontainers)
 ```
 
 Configuração por variáveis de ambiente:
@@ -49,12 +50,17 @@ Configuração por variáveis de ambiente:
 |---|---|---|
 | `PURSUIT_ENDERECO` | `127.0.0.1:8095` | Onde o servidor escuta |
 | `PURSUIT_BANCO_URL` | `postgres://pursuit:pursuit@localhost:5435/pursuit` | Conexão com o Postgres |
+| `PURSUIT_COOKIE_SEGURO` | `true` | Cookie da sessão só por HTTPS; `false` só no computador |
+| `PURSUIT_LOGIN_POR_MINUTO` | `10` | Tentativas de login por minuto por IP |
 
 ## Rotas
 
 | Método | Rota | O que faz |
 |---|---|---|
-| `GET` | `/saude` | `200` com o banco no ar, `503` sem ele |
+| `GET` | `/saude` | `200` com o banco no ar, `503` sem ele (pública) |
+| `POST` | `/api/sessao` | Entra: `usuario` e `senha`; grava o cookie da sessão (pública, com limite de tentativas: `429`) |
+| `GET` | `/api/sessao` | Quem está logado |
+| `DELETE` | `/api/sessao` | Sai: apaga a sessão no banco e o cookie (pública) |
 | `GET` | `/api/etapas` | As etapas na ordem do processo, com o nome para a tela e se é final |
 | `POST` | `/api/candidaturas` | Cadastra: `empresa` e `vaga` obrigatórios; `link`, `fonte`, `modalidade` (`remoto`, `hibrido`, `presencial`), `salario`, `anotacoes`; opcionais `etapa` inicial (padrão `interesse`), `observacao` e `em` (quando foi, pode ser no passado; formato RFC 3339 com fuso, como `2026-10-06T10:00:00-03:00`) |
 | `GET` | `/api/candidaturas?etapa=&busca=` | Lista, da mexida por último à mais antiga; filtra por etapa e busca na empresa ou na vaga |
@@ -63,10 +69,13 @@ Configuração por variáveis de ambiente:
 | `DELETE` | `/api/candidaturas/{id}` | Apaga a candidatura e o histórico |
 | `POST` | `/api/candidaturas/{id}/etapas` | Muda a etapa: `etapa`, opcionais `observacao` e `em` |
 
+Todas as rotas de `/api`, menos entrar e sair, respondem `401` sem login:
+
 ```bash
-curl -X POST 127.0.0.1:8095/api/candidaturas \
+curl -c cookies -X POST 127.0.0.1:8095/api/sessao -d '{"usuario":"andre","senha":"..."}'
+curl -b cookies -X POST 127.0.0.1:8095/api/candidaturas \
   -d '{"empresa":"Nubank","vaga":"Back-end Go","fonte":"LinkedIn","etapa":"enviada","em":"2026-10-06T10:00:00-03:00"}'
-curl -X POST 127.0.0.1:8095/api/candidaturas/1/etapas -d '{"etapa":"triagem","observacao":"o RH ligou"}'
+curl -b cookies -X POST 127.0.0.1:8095/api/candidaturas/1/etapas -d '{"etapa":"triagem","observacao":"o RH ligou"}'
 ```
 
 Erros no formato da RFC 9457 (`application/problem+json`), com o problema de cada campo:
@@ -93,6 +102,23 @@ candidatura que não existe, `409` para mudar para a etapa em que ela já está,
 - **Busca com `%` e `_` escapados:** buscar "100%" acha "100%", e não tudo que começa com "100".
 - **Middlewares** feitos à mão: um registra cada pedido no log (método, caminho, status, tempo) e
   outro transforma um `panic` num `500`, sem derrubar a conexão.
+- **Conta única:** as candidaturas não são separadas por pessoa, então o `definir-senha` recusa um
+  segundo nome (uma segunda conta veria tudo). Com o mesmo nome, troca a senha.
+- **Senha com argon2id** (parâmetros da OWASP: 19 MiB, 2 passadas), no formato PHC, que guarda os
+  parâmetros junto do hash. Comparação em tempo constante. Senha de 12 a 128 caracteres, sem regra
+  de "maiúscula e símbolo" (o NIST recomenda tamanho, não complexidade).
+- **Nome errado e senha errada respondem igual,** no texto e no tempo: com um nome que não existe,
+  a senha é conferida contra um hash de mentira, e o tempo não entrega quais nomes existem.
+- **Sessão no banco, não num token assinado:** o cookie leva 32 bytes aleatórios e o banco guarda
+  só o sha256 deles. Sair apaga a linha e o cookie deixa de valer na hora; trocar a senha
+  (`definir-senha`) apaga todas as sessões. Dura 7 dias e se renova com o uso (no máximo uma
+  escrita por hora). Uma goroutine apaga as vencidas de hora em hora e para junto com o servidor.
+- **Cookie `HttpOnly`, `SameSite=Strict`, `Secure` e `Path=/api`:** o JavaScript não lê (um XSS não
+  rouba a sessão) e outro site não consegue fazer o navegador mandá-lo (proteção contra CSRF).
+- **Limite de tentativas por IP** (*token bucket* do `golang.org/x/time/rate`, 10 por minuto). IPv6
+  conta pelo `/64`, porque quem tem um costuma ter a faixa inteira. IPs parados são esquecidos.
+  Além disso, no máximo 2 conferências de senha ao mesmo tempo: cada uma usa 19 MiB, e muitos
+  logins de muitos IPs acabariam com a memória da VM.
 - **Leitura coerente:** a candidatura e o histórico são lidos numa transação só de leitura
   (*repeatable read*), então uma mudança de etapa no meio não deixa os dois desencontrados.
 - **Caractere NUL recusado com `422`:** o Postgres não guarda o byte 0 em `text`, e sem a checagem
@@ -115,11 +141,12 @@ candidatura que não existe, `409` para mudar para a etapa em que ela já está,
 ## Organização
 
 ```
-cmd/pursuit/          main.go (sobe o servidor e desliga com calma)
+cmd/pursuit/          main.go (sobe o servidor e desliga com calma) · definir-senha
 internal/config/      variáveis de ambiente
 internal/banco/       conexão (pgxpool) e migrações (goose) · migracoes/*.sql · consultas/*.sql
 internal/banco/bd/    código gerado pelo sqlc (não editar)
 internal/candidaturas/ regras: validação, etapas, histórico, transações
-internal/api/         rotas HTTP, erros (RFC 9457), middlewares
+internal/contas/      senha (argon2id), sessões, limite de tentativas
+internal/api/         rotas HTTP, login (cookie), erros (RFC 9457), middlewares
 internal/testebanco/  Postgres dos testes (Testcontainers)
 ```
