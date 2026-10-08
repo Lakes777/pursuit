@@ -26,6 +26,25 @@ type Prazo struct {
 	Frase string // com %s para "8 dias"
 }
 
+// PrazoDaEtapa é uma linha da tabela de prazos da tela (GET /api/lembretes/prazos).
+type PrazoDaEtapa struct {
+	Etapa candidaturas.Etapa `json:"etapa"`
+	Nome  string             `json:"nome"`
+	Dias  int                `json:"dias"`
+}
+
+// TabelaDePrazos devolve os prazos na ordem das etapas (candidaturas.Etapas), só as que têm
+// prazo. A tela lê daqui: os números ficam num lugar só, sem cópia no JavaScript.
+func TabelaDePrazos() []PrazoDaEtapa {
+	tabela := []PrazoDaEtapa{}
+	for _, info := range candidaturas.Etapas {
+		if prazo, ok := Prazos[info.Etapa]; ok {
+			tabela = append(tabela, PrazoDaEtapa{Etapa: info.Etapa, Nome: info.Nome, Dias: prazo.Dias})
+		}
+	}
+	return tabela
+}
+
 // RepetirDias: uma candidatura que continua parada volta a ser lembrada a cada tantos dias.
 const RepetirDias = 7
 

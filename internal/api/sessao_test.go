@@ -18,6 +18,7 @@ func TestSemLoginTudoDa401(t *testing.T) {
 		{"GET", "/api/candidaturas"}, {"POST", "/api/candidaturas"}, {"GET", "/api/candidaturas/1"},
 		{"PUT", "/api/candidaturas/1"}, {"DELETE", "/api/candidaturas/1"},
 		{"POST", "/api/candidaturas/1/etapas"}, {"GET", "/api/etapas"}, {"GET", "/api/sessao"}, {"GET", "/api/numeros"}, {"GET", "/api/lembretes"},
+		{"GET", "/api/lembretes/prazos"},
 	}
 	for _, rota := range rotas {
 		if r := s.pedir(t, rota[0], s.URL+rota[1], `{}`); r.status != http.StatusUnauthorized {

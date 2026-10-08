@@ -1,1 +1,102 @@
-/* Números e lembretes (fase 7, parte B) */
+/* Números e lembretes (fase 7, parte B). Pastas com orelha (pursuit.css); âmbar só no que está parado. */
+
+.cabecalho-tela { margin-bottom: 8px }
+.cabecalho-tela .sub { color: var(--apagado); margin: 4px 0 0 }
+.nota { color: var(--apagado); font-size: .86rem; margin: 12px 0 0 }
+
+/* Grade das pastas: uma coluna no celular, duas a partir de 900 px (funil e fontes ocupam as duas) */
+.numeros-grade, .lembretes-grade { display: grid; gap: 14px 20px; grid-template-columns: minmax(0, 1fr); margin-top: 18px }
+@media (min-width: 900px) {
+  .numeros-grade { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .numeros-grade .larga { grid-column: 1 / -1 }
+  .lembretes-grade { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start }
+}
+.numeros-grade .pasta, .lembretes-grade .pasta { min-width: 0 }
+
+/* Estado vazio */
+.numeros-vazio { margin-top: 40px; max-width: 640px }
+.numeros-vazio p { margin: 0 0 8px }
+.numeros-vazio ul { margin: 0 0 18px; padding-left: 20px; color: var(--texto) }
+.numeros-vazio li { margin: 4px 0 }
+
+/* Funil: pastas que vão encolhendo, cada uma com uma orelha pequena à esquerda */
+.funil { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px }
+.funil-texto { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 9px }
+.funil-nome { font-weight: 700; min-width: 0 }
+.funil-valores { color: var(--apagado); white-space: nowrap; font-variant-numeric: tabular-nums }
+.funil-valores b { color: var(--texto-forte); font-size: 1.05rem }
+.funil-trilho { position: relative; height: 22px; background: var(--fundo); border-radius: 0 6px 6px 6px }
+.funil-pasta { position: absolute; inset: 0 auto 0 0; background: var(--verde); border-radius: 0 6px 6px 6px; min-width: 0 }
+.funil-pasta::before { content: ""; position: absolute; bottom: 100%; left: 0; width: min(36px, 100%); height: 5px; background: inherit; border-radius: 4px 4px 0 0 }
+.funil-pasta.zerada::before { display: none }
+
+/* Tempo de resposta: fichas com um número cada */
+.fichas-numero { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px }
+.ficha-numero { background: var(--ficha); border-radius: 6px; padding: 12px 14px; display: grid; gap: 2px }
+.ficha-numero b { font: 700 1.5rem/1.2 var(--f-titulo); color: var(--texto-forte) }
+.ficha-numero small { color: var(--apagado); font-size: .82rem }
+.ficha-numero.destaque b { color: var(--verde-claro) }
+.ficha-numero.atencao b { color: var(--ambar) }
+
+/* Envios por semana (SVG). No celular, o gráfico rola dentro da pasta, não a página */
+.rolagem-grafico { overflow-x: auto; margin-inline: -4px; padding-inline: 4px }
+.grafico-semanas { display: block; width: 100%; min-width: 420px; height: auto }
+.grafico-semanas text { font-family: var(--f-texto); font-variant-numeric: tabular-nums }
+.grafico-semanas .base { stroke: var(--linha); stroke-width: 1.5 }
+.grafico-semanas .semana rect { fill: var(--apagado); fill-opacity: .45 }
+.grafico-semanas .semana.atual rect { fill: var(--verde); fill-opacity: 1 }
+.grafico-semanas .semana rect.zero { fill: var(--apagado); fill-opacity: .8 }
+.grafico-semanas .valor { fill: var(--texto); font-size: 13px; font-weight: 700 }
+.grafico-semanas .semana.atual .valor { fill: var(--verde-claro) }
+.grafico-semanas .rotulo { fill: var(--apagado); font-size: 11.5px }
+.grafico-semanas .rotulo.forte { fill: var(--verde-claro); font-weight: 700 }
+
+/* Etapas agora */
+.grupo-etapas + .grupo-etapas { margin-top: 16px }
+.grupo-etapas h3 { font: 700 .78rem/1.4 var(--f-texto); letter-spacing: .05em; text-transform: uppercase; color: var(--apagado); margin-bottom: 6px }
+.etapas-agora { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px }
+.etapas-agora li { display: grid; grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr) 2.5ch; gap: 10px; align-items: center }
+.etapa-nome { overflow-wrap: anywhere; font-size: .92rem }
+.etapa-trilho { height: 8px; background: var(--fundo); border-radius: 4px; overflow: hidden }
+.etapa-barra { display: block; height: 100%; background: var(--verde); border-radius: 4px }
+.etapas-agora b { text-align: right; color: var(--texto-forte) }
+.etapas-agora li.zerada .etapa-nome, .etapas-agora li.zerada b { color: var(--apagado) }
+
+/* Tabelas (fontes e prazos) */
+.rolagem-tabela { overflow-x: auto }
+.tabela-numeros, .tabela-prazos { width: 100%; border-collapse: collapse; font-size: .92rem }
+.tabela-numeros th, .tabela-numeros td, .tabela-prazos th, .tabela-prazos td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--linha) }
+.tabela-numeros thead th, .tabela-prazos thead th { color: var(--apagado); font-size: .78rem; font-weight: 700; vertical-align: bottom }
+.tabela-numeros tbody th, .tabela-prazos tbody th { font-weight: 700; color: var(--texto-forte) }
+.tabela-numeros .num, .tabela-prazos .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap }
+.tabela-numeros .forte { color: var(--verde-claro); font-weight: 700 }
+.tabela-numeros .sem-fonte { color: var(--apagado); font-style: italic; font-weight: 400 }
+.tabela-numeros tbody tr:last-child > *, .tabela-prazos tbody tr:last-child > * { border-bottom: 0 }
+.tabela-numeros th:first-child, .tabela-numeros td:first-child, .tabela-prazos th:first-child { padding-left: 0 }
+.tabela-numeros th:last-child, .tabela-numeros td:last-child, .tabela-prazos td:last-child { padding-right: 0 }
+@media (max-width: 520px) { .tabela-numeros { font-size: .84rem } .tabela-numeros th, .tabela-numeros td { padding: 7px 6px } }
+.tabela-prazos { margin-top: 16px }
+.tabela-prazos caption { text-align: left; font: 700 .78rem/1.4 var(--f-texto); letter-spacing: .05em; text-transform: uppercase; color: var(--apagado); padding-bottom: 4px }
+
+/* Lembretes: as paradas em âmbar */
+.pasta.paradas > .orelha { color: var(--ambar) }
+.lista-paradas { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px }
+.ficha-parada { background: var(--ficha); border-left: 3px solid var(--ambar); border-radius: 0 6px 6px 0; padding: 12px 14px; display: grid; gap: 6px; min-width: 0 }
+.parada-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap }
+.parada-empresa { font: 700 1.05rem/1.3 var(--f-titulo); color: var(--texto-forte); text-decoration: none; overflow-wrap: anywhere }
+.parada-empresa:hover { color: var(--verde-claro); text-decoration: underline }
+.ficha-parada .etiqueta { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums }
+.ficha-parada .etiqueta svg { width: 14px; height: 14px }
+.parada-vaga { margin: 0; color: var(--texto); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; overflow-wrap: anywhere }
+.parada-vaga .etiqueta { background: var(--fundo) }
+.parada-texto { margin: 0; color: var(--apagado); font-size: .9rem; padding-left: 10px; border-left: 2px solid var(--linha); overflow-wrap: anywhere }
+.parada-abrir { justify-self: start; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .9rem; text-decoration: none }
+.parada-abrir:hover { text-decoration: underline }
+.parada-abrir svg { width: 16px; height: 16px }
+
+.tudo-em-dia { padding: 8px 0 4px; border-left: 3px solid var(--ok); padding-left: 14px; margin-top: 4px }
+.tudo-em-dia p { margin: 0 }
+.tudo-em-dia p + p { color: var(--apagado); margin-top: 6px; font-size: .92rem }
+.tudo-em-dia-titulo { font: 700 1.15rem/1.3 var(--f-titulo); color: var(--ok) }
+
+.regras { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: .94rem }

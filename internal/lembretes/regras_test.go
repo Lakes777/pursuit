@@ -22,6 +22,23 @@ func TestTodaEtapaEmAndamentoTemPrazo(t *testing.T) {
 	}
 }
 
+func TestTabelaDePrazosNaOrdemDasEtapas(t *testing.T) {
+	tabela := TabelaDePrazos()
+	if len(tabela) != len(Prazos) {
+		t.Fatalf("%d linhas para %d prazos", len(tabela), len(Prazos))
+	}
+	esperadas := []candidaturas.Etapa{candidaturas.Interesse, candidaturas.Enviada, candidaturas.Triagem,
+		candidaturas.Entrevista, candidaturas.Tecnica, candidaturas.Proposta}
+	for i, linha := range tabela {
+		if linha.Etapa != esperadas[i] || linha.Dias != Prazos[linha.Etapa].Dias || linha.Nome == "" {
+			t.Errorf("linha %d = %+v", i, linha)
+		}
+	}
+	if tabela[1].Nome != "Candidatura enviada" || tabela[1].Dias != 7 {
+		t.Errorf("enviada = %+v", tabela[1])
+	}
+}
+
 func TestPrecisaLembrar(t *testing.T) {
 	agora := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	dias := func(n float64) time.Time { return agora.Add(-time.Duration(n * float64(24*time.Hour))) }
