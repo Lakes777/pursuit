@@ -96,7 +96,7 @@ registrarTela('quadro', {
 
     function pasta(p) {
       const elemento = el('section', { class: 'pasta pasta-etapa', dataset: { etapa: p.etapa } },
-        el('h2', { class: 'orelha' }, p.nome, ' ', el('span', { class: 'contagem numero' }, String(p.fichas.length))),
+        el('h2', { class: 'orelha', title: p.nome }, el('span', { class: 'nome-orelha' }, p.nome), el('span', { class: 'contagem numero' }, String(p.fichas.length))),
         p.fichas.length
           ? el('ul', { class: 'fichas' }, p.fichas.map((f) => el('li', {}, ficha(f))))
           : el('p', { class: 'pasta-vazia' }, 'Nenhuma candidatura aqui.'))

@@ -64,7 +64,7 @@ label { font-weight: 700; font-size: .88rem }
 input, select, textarea { font: inherit; color: var(--texto); background: var(--fundo); border: 1px solid var(--linha); border-radius: 6px; padding: 9px 11px; width: 100% }
 input:focus, select:focus, textarea:focus { border-color: var(--verde); outline: none; box-shadow: 0 0 0 2px rgba(63, 176, 160, .25) }
 textarea { min-height: 110px; resize: vertical }
-.campo { display: grid; gap: 6px; min-width: 0 }
+.campo { display: grid; gap: 6px; min-width: 0; align-content: start }
 .campo .ajuda { color: var(--apagado); font-size: .82rem }
 .campo .erro-campo { color: var(--erro); font-size: .84rem }
 .campo.com-erro input, .campo.com-erro select, .campo.com-erro textarea { border-color: var(--erro) }
@@ -97,7 +97,11 @@ textarea { min-height: 110px; resize: vertical }
 .menu a:hover { color: var(--texto) }
 .menu a[aria-current="page"] { color: var(--verde-claro); border-bottom-color: var(--verde) }
 .acoes-barra { margin-left: auto; display: flex; gap: 8px; align-items: center }
-@media (max-width: 640px) { .acoes-barra .botao.principal { padding: 10px } .acoes-barra .botao.principal { font-size: 0; gap: 0 } }
+@media (max-width: 640px) {
+  .acoes-barra .botao.principal { padding: 10px; font-size: 0; gap: 0 }
+  /* No celular: marca e botões na primeira linha, o menu inteiro na segunda */
+  .menu { order: 3; width: 100% }
+}
 
 /* Faixa de números do topo */
 .numeros-topo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--linha); border-bottom: 1px solid var(--linha) }

@@ -11,7 +11,10 @@
 .quadro { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(188px, 1fr); gap: 12px; overflow-x: auto;
   padding-bottom: 10px; scroll-snap-type: x proximity; overscroll-behavior-x: contain }
 .pasta-etapa { scroll-snap-align: start; display: flex; flex-direction: column; min-height: 140px; padding: 12px }
-.pasta-etapa > .orelha { display: flex; align-items: center; gap: 8px }
+.pasta-etapa > .orelha { display: flex; align-items: center; gap: 8px; max-width: 100%; letter-spacing: .02em }
+/* Nome longo ("Candidatura enviada") numa coluna estreita: corta com reticências, a contagem fica */
+.orelha .nome-orelha { min-width: 0; overflow: hidden; text-overflow: ellipsis }
+.orelha .contagem { flex: none }
 .orelha .contagem { background: var(--ficha); color: var(--texto); border-radius: 99px; padding: 0 7px; font-size: .72rem; letter-spacing: 0 }
 .pasta-vazia { color: var(--apagado); font-size: .86rem; margin: 6px 2px; flex: 1 }
 .pasta-etapa.alvo { outline: 2px dashed var(--verde); outline-offset: -2px; background: #16292e }
