@@ -122,7 +122,7 @@ async function mostrarTela() {
   if ($('app').hidden) return
   const rota = lerRota(location.hash)
   const tela = telaDa(rota.secao) ?? telaDa('quadro')
-  navegacao++
+  const esta = ++navegacao
   if (limparTela) limparTela()
   limparTela = null
 
@@ -134,9 +134,15 @@ async function mostrarTela() {
   const conteudo = $('conteudo')
   trocar(conteudo)
   try {
-    const limpeza = await tela.montar(conteudo, { id: rota.id, navegacao }, ctx)
-    if (typeof limpeza === 'function') limparTela = limpeza
+    const limpeza = await tela.montar(conteudo, { id: rota.id, navegacao: esta }, ctx)
+    if (typeof limpeza === 'function') {
+      // Se o usuário já trocou de tela enquanto esta carregava, limpa na hora
+      if (esta === navegacao) limparTela = limpeza
+      else limpeza()
+    }
   } catch (erro) {
+    // Um erro de uma tela que o usuário já deixou não apaga a tela nova
+    if (esta !== navegacao) return
     if (erro instanceof ErroDaAPI && erro.status === 401) return
     trocar(conteudo, el('p', { class: 'erro' }, `Não foi possível abrir esta tela: ${erro.message}`))
   }
