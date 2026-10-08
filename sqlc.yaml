@@ -1,0 +1,16 @@
+# sqlc lê o SQL de internal/banco/consultas e as tabelas das migrações e gera o código Go
+# em internal/banco/bd (não editar à mão: rode `sqlc generate`; o CI confere com `sqlc diff`)
+version: "2"
+sql:
+  - engine: postgresql
+    queries: internal/banco/consultas
+    schema: internal/banco/migracoes
+    gen:
+      go:
+        package: bd
+        out: internal/banco/bd
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: timestamptz
+            go_type: time.Time

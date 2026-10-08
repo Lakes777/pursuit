@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/Lakes777/pursuit/internal/candidaturas"
 )
 
 // Pinger é o pedaço do banco que a rota de saúde usa (o *pgxpool.Pool serve).
@@ -16,10 +18,18 @@ type Pinger interface {
 
 // Novo monta as rotas. Usa o roteador da biblioteca padrão (Go 1.22+), que já entende
 // método e parâmetros no caminho ("GET /api/candidaturas/{id}").
-func Novo(banco Pinger, log *slog.Logger) http.Handler {
+func Novo(banco Pinger, servico *candidaturas.Servico, log *slog.Logger) http.Handler {
+	c := rotasDeCandidaturas{servico: servico, log: log}
 	rotas := http.NewServeMux()
 	rotas.HandleFunc("GET /saude", saude(banco, log))
-	return rotas
+	rotas.HandleFunc("GET /api/etapas", etapas)
+	rotas.HandleFunc("POST /api/candidaturas", c.criar)
+	rotas.HandleFunc("GET /api/candidaturas", c.listar)
+	rotas.HandleFunc("GET /api/candidaturas/{id}", c.buscar)
+	rotas.HandleFunc("PUT /api/candidaturas/{id}", c.editar)
+	rotas.HandleFunc("DELETE /api/candidaturas/{id}", c.apagar)
+	rotas.HandleFunc("POST /api/candidaturas/{id}/etapas", c.mudarEtapa)
+	return registrar(log, recuperar(log, rotas))
 }
 
 // saude responde 200 com o banco no ar e 503 sem ele (para o Docker e o Vigil).

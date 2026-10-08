@@ -15,6 +15,7 @@ import (
 
 	"github.com/Lakes777/pursuit/internal/api"
 	"github.com/Lakes777/pursuit/internal/banco"
+	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/config"
 )
 
@@ -50,7 +51,7 @@ func rodar(log *slog.Logger) error {
 		return err
 	}
 	servidor := &http.Server{
-		Handler: api.Novo(pool, log),
+		Handler: api.Novo(pool, candidaturas.NovoServico(pool), log),
 		// Sem limites, um cliente lento seguraria uma conexão para sempre (Slowloris)
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

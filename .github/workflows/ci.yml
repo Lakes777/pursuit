@@ -19,6 +19,11 @@ jobs:
           go-version-file: go.mod
       - name: Formatação (gofmt)
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - name: Código do sqlc em dia com o SQL
+        uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: "1.31.1"
+      - run: sqlc diff
       - run: go vet ./...
       - name: Lint (golangci-lint)
         uses: golangci/golangci-lint-action@v9
