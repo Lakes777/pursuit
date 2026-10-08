@@ -66,7 +66,7 @@ Configuração por variáveis de ambiente:
 | `DELETE` | `/api/sessao` | Sai: apaga a sessão no banco e o cookie (pública) |
 | `GET` | `/api/etapas` | As etapas na ordem do processo, com o nome para a tela e se é final |
 | `POST` | `/api/candidaturas` | Cadastra: `empresa` e `vaga` obrigatórios; `link`, `fonte`, `modalidade` (`remoto`, `hibrido`, `presencial`), `salario`, `anotacoes`; opcionais `etapa` inicial (padrão `interesse`), `observacao` e `em` (quando foi, pode ser no passado; formato RFC 3339 com fuso, como `2026-10-06T10:00:00-03:00`) |
-| `GET` | `/api/candidaturas?etapa=&busca=` | Lista, da mexida por último à mais antiga; filtra por etapa e busca na empresa ou na vaga |
+| `GET` | `/api/candidaturas?etapa=&busca=` | Lista, da mexida por último à mais antiga; filtra por etapa e busca na empresa ou na vaga. Cada uma traz `etapaDesde`, a última mudança de etapa (`atualizadaEm` muda também ao editar) |
 | `GET` | `/api/candidaturas/{id}` | Uma candidatura com o histórico de etapas |
 | `PUT` | `/api/candidaturas/{id}` | Troca os dados. Aceita só os campos de dados (`empresa` a `anotacoes`): `etapa`, `id` ou `historico` dão `400`, porque a etapa tem rota própria, que guarda o histórico |
 | `DELETE` | `/api/candidaturas/{id}` | Apaga a candidatura e o histórico |

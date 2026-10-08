@@ -231,6 +231,30 @@ func TestListarComFiltros(t *testing.T) {
 	}
 }
 
+func TestEtapaDesdeNaListaENoDetalhe(t *testing.T) {
+	s := novoServidor(t)
+	quando := time.Now().AddDate(0, 0, -4).Truncate(time.Second)
+	criada := s.pedir(t, "POST", s.URL+"/api/candidaturas",
+		`{"empresa":"Nubank","vaga":"Go","etapa":"enviada","em":"`+quando.Format(time.RFC3339)+`"}`)
+	s.pedir(t, "PUT", s.URL+criada.local, `{"empresa":"Nu","vaga":"Go"}`)
+
+	r := s.pedir(t, "GET", s.URL+"/api/candidaturas", "")
+	if !strings.Contains(r.corpo, `"etapaDesde":`) {
+		t.Fatalf("a lista não trouxe etapaDesde: %s", r.corpo)
+	}
+	lista := decodificar[[]candidaturas.Candidatura](t, r.corpo)
+	detalhe := decodificar[candidaturas.Detalhe](t, s.pedir(t, "GET", s.URL+criada.local, "").corpo)
+	if len(lista) != 1 || !lista[0].EtapaDesde.Equal(quando) || !detalhe.EtapaDesde.Equal(quando) {
+		t.Fatalf("editar não pode mexer em etapaDesde: lista = %+v, detalhe = %+v, quero %v", lista, detalhe.Candidatura, quando)
+	}
+
+	s.pedir(t, "POST", s.URL+criada.local+"/etapas", `{"etapa":"triagem"}`)
+	lista = decodificar[[]candidaturas.Candidatura](t, s.pedir(t, "GET", s.URL+"/api/candidaturas", "").corpo)
+	if len(lista) != 1 || !lista[0].EtapaDesde.After(quando) || time.Since(lista[0].EtapaDesde) > time.Minute {
+		t.Errorf("mudar de etapa recomeça a contagem: %+v", lista)
+	}
+}
+
 func TestListaVaziaEUmArrayENaoNull(t *testing.T) {
 	s := novoServidor(t)
 	if r := s.pedir(t, "GET", s.URL+"/api/candidaturas", ""); strings.TrimSpace(r.corpo) != "[]" {

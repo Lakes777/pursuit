@@ -24,7 +24,10 @@ var (
 type Candidatura struct {
 	ID int64 `json:"id"`
 	Dados
-	Etapa        Etapa     `json:"etapa"`
+	Etapa Etapa `json:"etapa"`
+	// EtapaDesde: quando ela entrou na etapa atual (a última mudança do histórico). Diferente
+	// de AtualizadaEm, que muda também quando os dados são editados.
+	EtapaDesde   time.Time `json:"etapaDesde"`
 	CriadaEm     time.Time `json:"criadaEm"`
 	AtualizadaEm time.Time `json:"atualizadaEm"`
 }
@@ -126,7 +129,7 @@ func (s *Servico) Listar(ctx context.Context, filtro Filtro) ([]Candidatura, err
 	}
 	lista := make([]Candidatura, 0, len(linhas))
 	for _, linha := range linhas {
-		lista = append(lista, converter(linha))
+		lista = append(lista, converter(linha.Candidatura, linha.EtapaDesde))
 	}
 	return lista, nil
 }
@@ -155,14 +158,24 @@ func (s *Servico) Editar(ctx context.Context, id int64, dados Dados) (Candidatur
 	if err != nil {
 		return Candidatura{}, err
 	}
-	linha, err := bd.New(s.pool).EditarCandidatura(ctx, bd.EditarCandidaturaParams{
-		ID: id, Empresa: dados.Empresa, Vaga: dados.Vaga, Link: dados.Link, Fonte: dados.Fonte,
-		Modalidade: dados.Modalidade, Salario: dados.Salario, Anotacoes: dados.Anotacoes,
+	var candidatura Candidatura
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := bd.New(tx)
+		linha, err := q.EditarCandidatura(ctx, bd.EditarCandidaturaParams{
+			ID: id, Empresa: dados.Empresa, Vaga: dados.Vaga, Link: dados.Link, Fonte: dados.Fonte,
+			Modalidade: dados.Modalidade, Salario: dados.Salario, Anotacoes: dados.Anotacoes,
+		})
+		if err != nil {
+			return naoEncontrada(err)
+		}
+		ultima, err := q.UltimaMudanca(ctx, id)
+		if err != nil {
+			return err
+		}
+		candidatura = converter(linha, ultima)
+		return nil
 	})
-	if err != nil {
-		return Candidatura{}, naoEncontrada(err)
-	}
-	return converter(linha), nil
+	return candidatura, err
 }
 
 // Apagar remove a candidatura e o histórico dela.
@@ -242,7 +255,11 @@ func detalhar(ctx context.Context, q *bd.Queries, linha bd.Candidatura) (Detalhe
 	if err != nil {
 		return Detalhe{}, err
 	}
-	detalhe := Detalhe{Candidatura: converter(linha), Historico: make([]Mudanca, 0, len(historico))}
+	var desde time.Time
+	if len(historico) > 0 {
+		desde = historico[len(historico)-1].Em
+	}
+	detalhe := Detalhe{Candidatura: converter(linha, desde), Historico: make([]Mudanca, 0, len(historico))}
 	for _, h := range historico {
 		mudanca := Mudanca{Para: Etapa(h.Para), Em: h.Em, Observacao: h.Observacao}
 		if h.De != nil {
@@ -254,7 +271,11 @@ func detalhar(ctx context.Context, q *bd.Queries, linha bd.Candidatura) (Detalhe
 	return detalhe, nil
 }
 
-func converter(linha bd.Candidatura) Candidatura {
+// converter monta a candidatura; etapaDesde zerada (sem histórico) vira a data do cadastro.
+func converter(linha bd.Candidatura, etapaDesde time.Time) Candidatura {
+	if etapaDesde.IsZero() {
+		etapaDesde = linha.CriadaEm
+	}
 	return Candidatura{
 		ID: linha.ID,
 		Dados: Dados{
@@ -262,6 +283,7 @@ func converter(linha bd.Candidatura) Candidatura {
 			Modalidade: linha.Modalidade, Salario: linha.Salario, Anotacoes: linha.Anotacoes,
 		},
 		Etapa:        Etapa(linha.Etapa),
+		EtapaDesde:   etapaDesde,
 		CriadaEm:     linha.CriadaEm,
 		AtualizadaEm: linha.AtualizadaEm,
 	}

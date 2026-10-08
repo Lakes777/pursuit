@@ -14,12 +14,19 @@ select * from candidatura where id = @id for update;
 -- name: ListarCandidaturas :many
 -- Filtros opcionais: etapa exata e busca por pedaço do nome da empresa ou da vaga
 -- (a busca chega com % e _ já escapados, para valerem como texto).
-select * from candidatura
+-- etapa_desde: quando ela entrou na etapa atual (a última linha do histórico); a tela mostra
+-- "há N dias nesta etapa". Sem histórico (linha inserida à mão), vale a data do cadastro.
+select sqlc.embed(candidatura),
+       coalesce(ultima.em, candidatura.criada_em)::timestamptz as etapa_desde
+from candidatura
+cross join lateral (
+    select max(h.em) as em from etapa_historico h where h.candidatura_id = candidatura.id
+) ultima
 where (sqlc.narg(etapa)::text is null or etapa = sqlc.narg(etapa))
   and (sqlc.narg(busca)::text is null
        or empresa ilike '%' || sqlc.narg(busca) || '%'
        or vaga ilike '%' || sqlc.narg(busca) || '%')
-order by atualizada_em desc, id desc;
+order by candidatura.atualizada_em desc, candidatura.id desc;
 
 -- name: EditarCandidatura :one
 update candidatura

@@ -169,12 +169,17 @@ func (q *Queries) HistoricoDaCandidatura(ctx context.Context, candidaturaID int6
 }
 
 const listarCandidaturas = `-- name: ListarCandidaturas :many
-select id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em from candidatura
+select candidatura.id, candidatura.empresa, candidatura.vaga, candidatura.link, candidatura.criada_em, candidatura.fonte, candidatura.modalidade, candidatura.salario, candidatura.anotacoes, candidatura.etapa, candidatura.atualizada_em,
+       coalesce(ultima.em, candidatura.criada_em)::timestamptz as etapa_desde
+from candidatura
+cross join lateral (
+    select max(h.em) as em from etapa_historico h where h.candidatura_id = candidatura.id
+) ultima
 where ($1::text is null or etapa = $1)
   and ($2::text is null
        or empresa ilike '%' || $2 || '%'
        or vaga ilike '%' || $2 || '%')
-order by atualizada_em desc, id desc
+order by candidatura.atualizada_em desc, candidatura.id desc
 `
 
 type ListarCandidaturasParams struct {
@@ -182,29 +187,37 @@ type ListarCandidaturasParams struct {
 	Busca *string
 }
 
+type ListarCandidaturasRow struct {
+	Candidatura Candidatura
+	EtapaDesde  time.Time
+}
+
 // Filtros opcionais: etapa exata e busca por pedaço do nome da empresa ou da vaga
 // (a busca chega com % e _ já escapados, para valerem como texto).
-func (q *Queries) ListarCandidaturas(ctx context.Context, arg ListarCandidaturasParams) ([]Candidatura, error) {
+// etapa_desde: quando ela entrou na etapa atual (a última linha do histórico); a tela mostra
+// "há N dias nesta etapa". Sem histórico (linha inserida à mão), vale a data do cadastro.
+func (q *Queries) ListarCandidaturas(ctx context.Context, arg ListarCandidaturasParams) ([]ListarCandidaturasRow, error) {
 	rows, err := q.db.Query(ctx, listarCandidaturas, arg.Etapa, arg.Busca)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Candidatura
+	var items []ListarCandidaturasRow
 	for rows.Next() {
-		var i Candidatura
+		var i ListarCandidaturasRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Empresa,
-			&i.Vaga,
-			&i.Link,
-			&i.CriadaEm,
-			&i.Fonte,
-			&i.Modalidade,
-			&i.Salario,
-			&i.Anotacoes,
-			&i.Etapa,
-			&i.AtualizadaEm,
+			&i.Candidatura.ID,
+			&i.Candidatura.Empresa,
+			&i.Candidatura.Vaga,
+			&i.Candidatura.Link,
+			&i.Candidatura.CriadaEm,
+			&i.Candidatura.Fonte,
+			&i.Candidatura.Modalidade,
+			&i.Candidatura.Salario,
+			&i.Candidatura.Anotacoes,
+			&i.Candidatura.Etapa,
+			&i.Candidatura.AtualizadaEm,
+			&i.EtapaDesde,
 		); err != nil {
 			return nil, err
 		}

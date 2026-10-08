@@ -274,3 +274,73 @@ func TestApagarLevaOHistorico(t *testing.T) {
 		t.Errorf("apagar de novo: %v", err)
 	}
 }
+
+func TestEtapaDesdeEAUltimaMudancaDeEtapa(t *testing.T) {
+	s, agora := novoServico(t)
+	segunda := agora.Add(-72 * time.Hour)
+	d, err := s.Criar(ctx, Dados{Empresa: "Nubank", Vaga: "Go"}, NovaEtapa{Etapa: Enviada, Em: &segunda})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !d.EtapaDesde.Equal(segunda) {
+		t.Errorf("criar: etapaDesde = %v, quero %v", d.EtapaDesde, segunda)
+	}
+
+	// Editar os dados muda atualizadaEm, mas não etapaDesde
+	editada, err := s.Editar(ctx, d.ID, Dados{Empresa: "Nu", Vaga: "Go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lista, err := s.Listar(ctx, Filtro{})
+	if err != nil || len(lista) != 1 {
+		t.Fatalf("lista = %v, err = %v", lista, err)
+	}
+	if !editada.EtapaDesde.Equal(segunda) || !lista[0].EtapaDesde.Equal(segunda) {
+		t.Errorf("depois de editar: editar = %v, listar = %v, quero %v", editada.EtapaDesde, lista[0].EtapaDesde, segunda)
+	}
+
+	// Mudar de etapa recomeça a contagem
+	mudada, err := s.MudarEtapa(ctx, d.ID, NovaEtapa{Etapa: Triagem})
+	if err != nil {
+		t.Fatal(err)
+	}
+	buscada, err := s.Buscar(ctx, d.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lista, err = s.Listar(ctx, Filtro{})
+	if err != nil || len(lista) != 1 {
+		t.Fatalf("lista = %v, err = %v", lista, err)
+	}
+	for nome, desde := range map[string]time.Time{"mudar": mudada.EtapaDesde, "buscar": buscada.EtapaDesde, "listar": lista[0].EtapaDesde} {
+		if !desde.Equal(agora) {
+			t.Errorf("%s: etapaDesde = %v, quero %v", nome, desde, agora)
+		}
+	}
+}
+
+func TestEtapaDesdeSemHistoricoUsaOCadastro(t *testing.T) {
+	s, _ := novoServico(t)
+	var id int64
+	var criada time.Time
+	if err := s.pool.QueryRow(ctx, "insert into candidatura (empresa, vaga, criada_em) values ('a', 'b', '2026-09-01T12:00:00Z') returning id, criada_em").
+		Scan(&id, &criada); err != nil {
+		t.Fatal(err)
+	}
+
+	lista, err := s.Listar(ctx, Filtro{})
+	if err != nil || len(lista) != 1 {
+		t.Fatalf("lista = %v, err = %v", lista, err)
+	}
+	d, err := s.Buscar(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := s.Editar(ctx, id, Dados{Empresa: "a", Vaga: "c"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lista[0].EtapaDesde.Equal(criada) || !d.EtapaDesde.Equal(criada) || !e.EtapaDesde.Equal(criada) {
+		t.Errorf("listar = %v, buscar = %v, editar = %v, quero %v", lista[0].EtapaDesde, d.EtapaDesde, e.EtapaDesde, criada)
+	}
+}
