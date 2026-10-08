@@ -1,0 +1,10 @@
+# Site do Pursuit no Caddy do Vigil (copiado para ~/vigil/sites/ pelo publicar.sh). O Caddy pega
+# o certificado HTTPS sozinho. DOMINIO_PURSUIT é trocado pelo endereço na publicação.
+DOMINIO_PURSUIT {
+	encode gzip
+	reverse_proxy pursuit:8095
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}

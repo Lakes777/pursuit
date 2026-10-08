@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/Lakes777/pursuit/internal/contas"
@@ -18,6 +19,7 @@ type rotasDeSessao struct {
 	contas       *contas.Servico
 	limite       *contas.Limite
 	cookieSeguro bool
+	proxies      []netip.Prefix
 	log          *slog.Logger
 }
 
@@ -27,7 +29,7 @@ type entradaLogin struct {
 }
 
 func (s rotasDeSessao) entrar(w http.ResponseWriter, r *http.Request) {
-	if !s.limite.Permitir(ipDoPedido(r), time.Now()) {
+	if !s.limite.Permitir(ipDoPedido(r, s.proxies), time.Now()) {
 		w.Header().Set("Retry-After", "60")
 		responderProblema(w, Problema{Titulo: "Tentativas demais", Status: http.StatusTooManyRequests,
 			Detalhe: "espere um minuto e tente de novo"})
@@ -119,17 +121,47 @@ func usuarioDoPedido(r *http.Request) contas.Usuario {
 	return usuario
 }
 
-// ipDoPedido usa o endereço da conexão. Atrás de um proxy (Caddy, ou a porta publicada pelo
-// Docker), todo mundo chega com o IP do proxy e o limite viraria um só para todos: na fase 8,
-// confiar no X-Forwarded-For só quando a conexão vier do proxy.
-func ipDoPedido(r *http.Request) netip.Addr {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
+// ipDoPedido devolve o IP de quem fez o pedido, para o limite de tentativas. Atrás do Caddy,
+// toda conexão vem do IP dele, e o limite viraria um só para todo mundo: por isso, quando a
+// conexão vem de um proxy confiável, vale o X-Forwarded-For, lido da direita para a esquerda
+// (o último endereço que não é proxy é quem falou com o Caddy). De qualquer outra origem o
+// cabeçalho é ignorado: senão cada tentativa poderia inventar um IP novo e fugir do limite.
+func ipDoPedido(r *http.Request, proxies []netip.Prefix) netip.Addr {
+	ip := ipDaConexao(r.RemoteAddr)
+	if !confiavel(ip, proxies) {
+		return ip
+	}
+	repassados := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
+	for i := len(repassados) - 1; i >= 0; i-- {
+		candidato, err := netip.ParseAddr(strings.TrimSpace(repassados[i]))
+		if err != nil {
+			return ip // cabeçalho estragado: fica o IP do proxy (um limite só, mas nunca um IP inventado)
+		}
+		candidato = candidato.Unmap()
+		if !confiavel(candidato, proxies) {
+			return candidato
+		}
+	}
+	return ip
+}
+
+func ipDaConexao(remoto string) netip.Addr {
+	host, _, err := net.SplitHostPort(remoto)
 	if err != nil {
-		host = r.RemoteAddr
+		host = remoto
 	}
 	ip, err := netip.ParseAddr(host)
 	if err != nil {
 		return netip.IPv4Unspecified()
 	}
-	return ip
+	return ip.Unmap()
+}
+
+func confiavel(ip netip.Addr, proxies []netip.Prefix) bool {
+	for _, p := range proxies {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

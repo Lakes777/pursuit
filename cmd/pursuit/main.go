@@ -4,6 +4,8 @@
 // Uso: pursuit                        sobe a API
 //
 //	pursuit definir-senha <nome>   cria a conta ou troca a senha (pergunta a senha escondida)
+//	pursuit saude                  confere se a API responde (o healthcheck do Docker)
+//	pursuit telegram-teste         manda uma mensagem de teste pelo Telegram configurado
 package main
 
 import (
@@ -18,6 +20,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	// O banco de fusos vai dentro do binário: a imagem de produção não tem o do sistema, e sem
+	// ele Brasília viraria um fuso fixo (os lembretes e as semanas dependem dele)
+	_ "time/tzdata"
 
 	"github.com/Lakes777/pursuit/internal/api"
 	"github.com/Lakes777/pursuit/internal/banco"
@@ -51,6 +56,27 @@ func rodar(log *slog.Logger, args []string) error {
 	if err != nil {
 		return err
 	}
+	// Argumentos errados: o uso, antes de tentar qualquer conexão
+	if !argumentosValidos(args) {
+		return erroDeUso("Uso: pursuit [definir-senha <nome> | saude | telegram-teste]")
+	}
+	// Os comandos que não precisam do banco vêm antes de conectar
+	if len(args) > 0 {
+		switch args[0] {
+		case "saude":
+			return conferirSaude(ctx, cfg.Endereco)
+		case "telegram-teste":
+			cliente, err := telegram.Novo(cfg.TelegramURL, cfg.TelegramToken, cfg.TelegramChat)
+			if err != nil {
+				return err
+			}
+			if err := cliente.Enviar(ctx, "Pursuit: teste do Telegram. Os lembretes vão chegar aqui."); err != nil {
+				return err
+			}
+			fmt.Fprintln(os.Stderr, "Mensagem de teste enviada.")
+			return nil
+		}
+	}
 	pool, err := banco.Conectar(ctx, cfg.BancoURL)
 	if err != nil {
 		return err
@@ -61,10 +87,7 @@ func rodar(log *slog.Logger, args []string) error {
 	}
 	servicoDeContas := contas.NovoServico(pool)
 
-	if len(args) > 0 {
-		if args[0] != "definir-senha" || len(args) != 2 {
-			return erroDeUso("Uso: pursuit definir-senha <nome>")
-		}
+	if len(args) > 0 { // definir-senha (os outros já voltaram)
 		return definirSenha(ctx, servicoDeContas, args[1], os.Stdin, os.Stderr)
 	}
 
@@ -92,7 +115,7 @@ func rodar(log *slog.Logger, args []string) error {
 		Handler: api.Novo(api.Dependencias{
 			Banco: pool, Candidaturas: candidaturas.NovoServico(pool), Contas: servicoDeContas,
 			Numeros: numeros.NovoServico(pool), Lembretes: servicoDeLembretes,
-			Limite: contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Log: log,
+			Limite: contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Proxies: cfg.ProxiesConfiaveis, Log: log,
 		}),
 		// Sem limites, um cliente lento seguraria uma conexão para sempre (Slowloris)
 		ReadHeaderTimeout: 5 * time.Second,
@@ -142,4 +165,18 @@ func rodar(log *slog.Logger, args []string) error {
 		return err
 	}
 	return nil
+}
+
+// argumentosValidos: nenhum (sobe a API), "saude", "telegram-teste" ou "definir-senha <nome>".
+func argumentosValidos(args []string) bool {
+	if len(args) == 0 {
+		return true
+	}
+	switch args[0] {
+	case "saude", "telegram-teste":
+		return len(args) == 1
+	case "definir-senha":
+		return len(args) == 2
+	}
+	return false
 }

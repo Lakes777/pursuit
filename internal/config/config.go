@@ -3,6 +3,7 @@ package config
 
 import (
 	"errors"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -24,6 +25,8 @@ type Config struct {
 	TelegramToken string
 	TelegramChat  string
 	TelegramURL   string // vazio = api.telegram.org
+	// ProxiesConfiaveis: de onde o X-Forwarded-For vale (a rede do Caddy, em produção)
+	ProxiesConfiaveis []netip.Prefix
 }
 
 // Padrões para o compose.yaml da raiz (Postgres na porta 5435).
@@ -52,6 +55,20 @@ func Carregar(ler func(string) string) (Config, error) {
 	c.TelegramToken = strings.TrimSpace(ler("PURSUIT_TELEGRAM_TOKEN"))
 	c.TelegramChat = strings.TrimSpace(ler("PURSUIT_TELEGRAM_CHAT"))
 	c.TelegramURL = strings.TrimSpace(ler("PURSUIT_TELEGRAM_URL"))
+	for _, item := range strings.Split(ler("PURSUIT_PROXY_CONFIAVEL"), ",") {
+		if item = strings.TrimSpace(item); item == "" {
+			continue
+		}
+		prefixo, err := netip.ParsePrefix(item)
+		if err != nil {
+			ip, errIP := netip.ParseAddr(item)
+			if errIP != nil {
+				return Config{}, errors.New("PURSUIT_PROXY_CONFIAVEL: use faixas como 172.20.0.0/16, separadas por vírgula")
+			}
+			prefixo = netip.PrefixFrom(ip, ip.BitLen())
+		}
+		c.ProxiesConfiaveis = append(c.ProxiesConfiaveis, prefixo.Masked())
+	}
 	u, err := url.Parse(c.BancoURL)
 	if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" {
 		// Sem repetir o valor no erro: a URL traz a senha do banco

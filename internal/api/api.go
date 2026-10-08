@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"github.com/Lakes777/pursuit/internal/candidaturas"
@@ -30,7 +31,9 @@ type Dependencias struct {
 	Limite       *contas.Limite
 	// CookieSeguro: o cookie da sessão só vai por HTTPS (desligar só no computador, sem HTTPS)
 	CookieSeguro bool
-	Log          *slog.Logger
+	// Proxies: de onde vale o X-Forwarded-For (o Caddy, em produção); vazio = só o IP da conexão
+	Proxies []netip.Prefix
+	Log     *slog.Logger
 }
 
 // Novo monta as rotas. Usa o roteador da biblioteca padrão (Go 1.22+), que já entende
@@ -38,7 +41,7 @@ type Dependencias struct {
 // menos entrar e sair; /saude é pública (para o Docker e o Vigil).
 func Novo(d Dependencias) http.Handler {
 	c := rotasDeCandidaturas{servico: d.Candidaturas, log: d.Log}
-	s := rotasDeSessao{contas: d.Contas, limite: d.Limite, cookieSeguro: d.CookieSeguro, log: d.Log}
+	s := rotasDeSessao{contas: d.Contas, limite: d.Limite, cookieSeguro: d.CookieSeguro, proxies: d.Proxies, log: d.Log}
 	logado := s.exigirLogin
 	rotas := http.NewServeMux()
 	rotas.HandleFunc("GET /saude", saude(d.Banco, d.Log))

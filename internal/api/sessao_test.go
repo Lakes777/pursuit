@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -178,5 +179,36 @@ func TestLimiteDeTentativas(t *testing.T) {
 
 	if r.StatusCode != http.StatusTooManyRequests || r.Header.Get("Retry-After") != "60" {
 		t.Errorf("4ª tentativa: %d %v", r.StatusCode, r.Header)
+	}
+}
+
+func TestIPDoPedidoAtrasDoProxy(t *testing.T) {
+	proxies := []netip.Prefix{netip.MustParsePrefix("172.20.0.0/16")}
+	pedido := func(remoto string, xff ...string) *http.Request {
+		r := httptest.NewRequest("POST", "/api/sessao", nil)
+		r.RemoteAddr = remoto
+		for _, v := range xff {
+			r.Header.Add("X-Forwarded-For", v)
+		}
+		return r
+	}
+	casos := []struct {
+		nome string
+		r    *http.Request
+		ip   string
+	}{
+		{"sem proxy", pedido("200.1.2.3:5000"), "200.1.2.3"},
+		{"de fora, com cabeçalho inventado", pedido("200.1.2.3:5000", "1.1.1.1"), "200.1.2.3"},
+		{"pelo Caddy", pedido("172.20.0.5:4000", "200.1.2.3"), "200.1.2.3"},
+		{"cliente mandou um falso antes", pedido("172.20.0.5:4000", "1.1.1.1, 200.1.2.3"), "200.1.2.3"},
+		{"em dois cabeçalhos", pedido("172.20.0.5:4000", "1.1.1.1", "200.1.2.3"), "200.1.2.3"},
+		{"pelo Caddy, sem cabeçalho", pedido("172.20.0.5:4000"), "172.20.0.5"},
+		{"cabeçalho estragado", pedido("172.20.0.5:4000", "lixo"), "172.20.0.5"},
+		{"IPv6", pedido("172.20.0.5:4000", "2804:14c::1"), "2804:14c::1"},
+	}
+	for _, c := range casos {
+		if got := ipDoPedido(c.r, proxies); got.String() != c.ip {
+			t.Errorf("%s: %s, esperado %s", c.nome, got, c.ip)
+		}
 	}
 }

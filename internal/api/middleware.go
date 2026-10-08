@@ -15,6 +15,10 @@ func registrar(log *slog.Logger, proximo http.Handler) http.Handler {
 		inicio := time.Now()
 		gravador := &comStatus{ResponseWriter: w, status: http.StatusOK}
 		proximo.ServeHTTP(gravador, r)
+		// A conferência de saúde do Docker (a cada 30 s) só aparece no log quando falha
+		if r.URL.Path == "/saude" && gravador.status == http.StatusOK {
+			return
+		}
 		log.Info("pedido", "metodo", r.Method, "caminho", r.URL.Path, "status", gravador.status,
 			"ms", time.Since(inicio).Milliseconds())
 	})

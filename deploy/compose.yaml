@@ -1,0 +1,28 @@
+# Produção na VM da Oracle (a mesma do Sidekick e do Vigil, 1 GB de memória para tudo).
+# O Pursuit usa o Postgres do Vigil (com banco e usuário próprios) e o Caddy dele na frente:
+# por isso entra na rede do Vigil, em vez de subir outro Postgres (que custaria ~100 MB).
+# Quando a VM ARM sair, o plano é mudar para lá (veja "Publicação" no README).
+name: pursuit
+
+services:
+  api:
+    image: pursuit:latest
+    restart: unless-stopped
+    # PURSUIT_BANCO_URL, PURSUIT_TELEGRAM_TOKEN, PURSUIT_TELEGRAM_CHAT e PURSUIT_PROXY_CONFIAVEL
+    # ficam no .env da VM (criado pelo preparar-vm.sh) e nunca saem de lá
+    env_file: .env
+    mem_limit: 64m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      vigil:
+        # O nome que o Caddy do Vigil usa para chegar aqui (reverse_proxy pursuit:8095)
+        aliases: [pursuit]
+
+networks:
+  vigil:
+    external: true
+    name: vigil_default
