@@ -293,3 +293,15 @@ func TestLembretes(t *testing.T) {
 		t.Errorf("r = %+v", r)
 	}
 }
+
+func TestInterfaceNaRaizEApiDesconhecidaEmJSON(t *testing.T) {
+	s := novoServidorSemLogin(t, 10)
+
+	pagina := s.pedir(t, "GET", s.URL+"/", "")
+	if pagina.status != http.StatusOK || !strings.Contains(pagina.corpo, "<title>Pursuit</title>") {
+		t.Errorf("página: %d", pagina.status)
+	}
+	if r := s.pedir(t, "GET", s.URL+"/api/nada", ""); r.status != http.StatusNotFound || !strings.HasPrefix(r.tipo, "application/problem+json") {
+		t.Errorf("/api/nada: %d %s", r.status, r.tipo)
+	}
+}

@@ -12,6 +12,7 @@ import (
 	"github.com/Lakes777/pursuit/internal/contas"
 	"github.com/Lakes777/pursuit/internal/lembretes"
 	"github.com/Lakes777/pursuit/internal/numeros"
+	"github.com/Lakes777/pursuit/internal/web"
 )
 
 // Pinger é o pedaço do banco que a rota de saúde usa (o *pgxpool.Pool serve).
@@ -53,6 +54,12 @@ func Novo(d Dependencias) http.Handler {
 	rotas.HandleFunc("POST /api/candidaturas/{id}/etapas", logado(c.mudarEtapa))
 	rotas.HandleFunc("GET /api/numeros", logado(verNumeros(d.Numeros, d.Log)))
 	rotas.HandleFunc("GET /api/lembretes", logado(verLembretes(d.Lembretes, d.Log)))
+	// A interface (HTML, CSS, JS) em tudo o que não é /api nem /saude. Um /api desconhecido
+	// continua respondendo 404 em JSON, não a página.
+	rotas.Handle("GET /", web.Handler())
+	rotas.HandleFunc("GET /api/", func(w http.ResponseWriter, _ *http.Request) {
+		responderProblema(w, Problema{Titulo: "Rota não encontrada", Status: http.StatusNotFound})
+	})
 	return registrar(d.Log, recuperar(d.Log, rotas))
 }
 

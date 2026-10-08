@@ -1,0 +1,6 @@
+Fontes servidas pelo próprio Pursuit (sem depender do Google Fonts), só com os caracteres latinos:
+
+- Familjen Grotesk (títulos e números; fonte variável, pesos 500 a 700): SIL Open Font License 1.1
+  (OFL-familjen-grotesk.txt), https://github.com/Familjen-Sthlm/Familjen-Grotesk
+- Atkinson Hyperlegible (texto; feita pelo Braille Institute para leitura fácil): SIL Open Font
+  License 1.1 (OFL-atkinson-hyperlegible.txt), https://brailleinstitute.org/freefont
