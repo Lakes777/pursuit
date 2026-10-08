@@ -10,6 +10,7 @@ import (
 
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/contas"
+	"github.com/Lakes777/pursuit/internal/numeros"
 )
 
 // Pinger é o pedaço do banco que a rota de saúde usa (o *pgxpool.Pool serve).
@@ -22,6 +23,7 @@ type Dependencias struct {
 	Banco        Pinger
 	Candidaturas *candidaturas.Servico
 	Contas       *contas.Servico
+	Numeros      *numeros.Servico
 	Limite       *contas.Limite
 	// CookieSeguro: o cookie da sessão só vai por HTTPS (desligar só no computador, sem HTTPS)
 	CookieSeguro bool
@@ -47,6 +49,7 @@ func Novo(d Dependencias) http.Handler {
 	rotas.HandleFunc("PUT /api/candidaturas/{id}", logado(c.editar))
 	rotas.HandleFunc("DELETE /api/candidaturas/{id}", logado(c.apagar))
 	rotas.HandleFunc("POST /api/candidaturas/{id}/etapas", logado(c.mudarEtapa))
+	rotas.HandleFunc("GET /api/numeros", logado(verNumeros(d.Numeros, d.Log)))
 	return registrar(d.Log, recuperar(d.Log, rotas))
 }
 
@@ -61,6 +64,18 @@ func saude(banco Pinger, log *slog.Logger) http.HandlerFunc {
 			return
 		}
 		responderJSON(w, http.StatusOK, map[string]string{"status": "ok", "banco": "ok"})
+	}
+}
+
+func verNumeros(servico *numeros.Servico, log *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		n, err := servico.Calcular(r.Context())
+		if err != nil {
+			log.Error("erro ao calcular os números", "erro", err)
+			responderProblema(w, Problema{Titulo: "Erro interno", Status: http.StatusInternalServerError})
+			return
+		}
+		responderJSON(w, http.StatusOK, n)
 	}
 }
 

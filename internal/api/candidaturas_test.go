@@ -13,6 +13,7 @@ import (
 
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/contas"
+	"github.com/Lakes777/pursuit/internal/numeros"
 	"github.com/Lakes777/pursuit/internal/testebanco"
 )
 
@@ -46,7 +47,7 @@ func novoServidorSemLogin(t *testing.T, loginPorMinuto int) *servidorDeTeste {
 	testebanco.Limpar(t, pool)
 	servidor := httptest.NewServer(Novo(Dependencias{
 		Banco: pool, Candidaturas: candidaturas.NovoServico(pool), Contas: contas.NovoServico(pool),
-		Limite: contas.NovoLimite(loginPorMinuto), Log: semLog,
+		Numeros: numeros.NovoServico(pool), Limite: contas.NovoLimite(loginPorMinuto), Log: semLog,
 	}))
 	t.Cleanup(servidor.Close)
 	jarra, err := cookiejar.New(nil)
@@ -263,4 +264,16 @@ func mustURL(t *testing.T, endereco string) *url.URL {
 		t.Fatal(err)
 	}
 	return u
+}
+
+func TestNumeros(t *testing.T) {
+	s := novoServidor(t)
+	s.pedir(t, "POST", s.URL+"/api/candidaturas", `{"empresa":"Nubank","vaga":"Go","etapa":"enviada"}`)
+
+	r := s.pedir(t, "GET", s.URL+"/api/numeros", "")
+
+	n := decodificar[numeros.Numeros](t, r.corpo)
+	if r.status != http.StatusOK || n.Total != 1 || n.Funil[0].Total != 1 || n.Respostas.Aguardando != 1 {
+		t.Errorf("r = %+v", r)
+	}
 }

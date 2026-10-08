@@ -24,6 +24,7 @@ import (
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/config"
 	"github.com/Lakes777/pursuit/internal/contas"
+	"github.com/Lakes777/pursuit/internal/numeros"
 )
 
 func main() {
@@ -73,7 +74,8 @@ func rodar(log *slog.Logger, args []string) error {
 	servidor := &http.Server{
 		Handler: api.Novo(api.Dependencias{
 			Banco: pool, Candidaturas: candidaturas.NovoServico(pool), Contas: servicoDeContas,
-			Limite: contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Log: log,
+			Numeros: numeros.NovoServico(pool),
+			Limite:  contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Log: log,
 		}),
 		// Sem limites, um cliente lento seguraria uma conexão para sempre (Slowloris)
 		ReadHeaderTimeout: 5 * time.Second,

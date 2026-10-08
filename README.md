@@ -17,7 +17,7 @@ já está pronto.
 - [x] **1. Esqueleto:** Go com o roteador da biblioteca padrão, PostgreSQL com migrações (goose), `/saude`, testes com Testcontainers, CI com lint
 - [x] **2. Candidaturas:** cadastro com etapas (interesse, enviada, triagem, entrevista, técnica, proposta, contratado, recusada, desisti) e o histórico de cada mudança
 - [x] **3. Login:** conta única com senha (argon2id), sessão por cookie guardada no banco, limite de tentativas; toda rota de `/api` pede login
-- [ ] **4. Números:** funil por etapa, tempo até a resposta, taxa por fonte (LinkedIn, Gupy...)
+- [x] **4. Números:** funil por etapa, tempo até a resposta, taxa por fonte (LinkedIn, Gupy...), envios por semana
 - [ ] **5. Lembretes:** uma goroutine em segundo plano avisa pelo Telegram as candidaturas paradas há dias
 - [ ] **6. Beacon:** um link curto por candidatura, com os cliques
 - [ ] **7. Interface:** página própria, com identidade visual
@@ -68,6 +68,7 @@ Configuração por variáveis de ambiente:
 | `PUT` | `/api/candidaturas/{id}` | Troca os dados. Aceita só os campos de dados (`empresa` a `anotacoes`): `etapa`, `id` ou `historico` dão `400`, porque a etapa tem rota própria, que guarda o histórico |
 | `DELETE` | `/api/candidaturas/{id}` | Apaga a candidatura e o histórico |
 | `POST` | `/api/candidaturas/{id}/etapas` | Muda a etapa: `etapa`, opcionais `observacao` e `em` |
+| `GET` | `/api/numeros` | Funil, tempo de resposta, fontes, etapas atuais e envios por semana (abaixo) |
 
 Todas as rotas de `/api`, menos entrar e sair, respondem `401` sem login:
 
@@ -77,6 +78,35 @@ curl -b cookies -X POST 127.0.0.1:8095/api/candidaturas \
   -d '{"empresa":"Nubank","vaga":"Back-end Go","fonte":"LinkedIn","etapa":"enviada","em":"2026-10-06T10:00:00-03:00"}'
 curl -b cookies -X POST 127.0.0.1:8095/api/candidaturas/1/etapas -d '{"etapa":"triagem","observacao":"o RH ligou"}'
 ```
+
+### Números
+
+```json
+{"total": 6, "emAndamento": 3,
+ "funil": [{"etapa": "enviada", "nome": "Candidatura enviada", "total": 5, "taxa": 100},
+           {"etapa": "entrevista", "nome": "Entrevista", "total": 3, "taxa": 60}, ...],
+ "respostas": {"respondidas": 2, "aguardando": 1, "mediaDias": 3, "medianaDias": 3},
+ "porFonte": [{"fonte": "LinkedIn", "enviadas": 2, "entrevistas": 2, "propostas": 1, "contratados": 1, "taxaDeEntrevista": 100}, ...],
+ "porEtapa": [{"etapa": "interesse", "nome": "Interesse", "total": 1}, ...],
+ "porSemana": [{"inicio": "2026-07-20", "total": 0}, ..., {"inicio": "2026-10-05", "total": 2}]}
+```
+
+- **Funil pelo histórico, não pela etapa atual:** uma candidatura recusada depois da entrevista conta
+  como "chegou à entrevista". Cada uma vale pela etapa mais adiantada que já atingiu, e pular uma
+  etapa (ir direto para a entrevista) conta como ter passado pela triagem. Taxa = sobre as enviadas.
+  Uma candidatura cadastrada já como "recusada" conta como enviada (a empresa só recusa o que
+  recebeu); "desisti" não conta (dá para desistir antes de mandar). A ordem das etapas vem de um
+  lugar só (`candidaturas.Etapas`) e vai para o SQL como parâmetro: uma etapa nova entra no funil
+  sem mexer na consulta.
+- **Tempo de resposta:** do primeiro "enviada" até a primeira mudança que veio da empresa. "Desisti"
+  é decisão minha e não conta como resposta. Média e **mediana** (uma resposta que levou dois meses
+  puxa a média, mas não a mediana). Duas mudanças no mesmo instante ficam na ordem do registro.
+- **Fontes iguais sem diferenciar maiúsculas nem espaços nas pontas** ("LinkedIn" e " linkedin " são
+  uma só); o nome mostrado é a grafia mais usada.
+- **Semanas de segunda a domingo no horário de Brasília**, as 12 últimas, com zero nas vazias (o
+  gráfico precisa delas). Conta o primeiro envio de cada candidatura: voltar para "enviada" não
+  conta de novo, e uma cadastrada direto na entrevista entra no funil mas não nas semanas.
+- Tudo numa transação só de leitura (*repeatable read*): os números saem da mesma "foto" do banco.
 
 Erros no formato da RFC 9457 (`application/problem+json`), com o problema de cada campo:
 
@@ -147,6 +177,7 @@ internal/banco/       conexão (pgxpool) e migrações (goose) · migracoes/*.sq
 internal/banco/bd/    código gerado pelo sqlc (não editar)
 internal/candidaturas/ regras: validação, etapas, histórico, transações
 internal/contas/      senha (argon2id), sessões, limite de tentativas
+internal/numeros/     funil, tempo de resposta, fontes, envios por semana
 internal/api/         rotas HTTP, login (cookie), erros (RFC 9457), middlewares
 internal/testebanco/  Postgres dos testes (Testcontainers)
 ```
