@@ -12,6 +12,8 @@ já está pronto.
 
 É o meu primeiro projeto em **Go**.
 
+**No ar:** https://pursuit.147-15-40-173.sslip.io (uso pessoal, com login)
+
 ![Quadro do Pursuit: uma pasta por etapa, com as fichas das candidaturas; as paradas em âmbar](docs/quadro.png)
 
 ## Fases
@@ -23,7 +25,7 @@ já está pronto.
 - [x] **5. Lembretes:** uma goroutine em segundo plano avisa pelo Telegram as candidaturas paradas há dias (uma mensagem por dia, no máximo)
 - [ ] **6. Beacon:** um link curto por candidatura, com os cliques
 - [x] **7. Interface:** página servida pelo próprio binário, com identidade visual própria ("Fichário"): quadro por etapa com arrastar e soltar, ficha com o histórico, formulário, números com gráficos e lembretes
-- [ ] **8. Publicação:** imagem Docker só com o binário, numa VM da Oracle. Atenção: atrás do Caddy todo pedido chega com o IP do proxy; o limite de login precisa confiar no `X-Forwarded-For` só quando a conexão vier do proxy
+- [x] **8. Publicação:** imagem Docker só com o binário (~25 MB), numa VM da Oracle, com HTTPS, backup diário e vigiado pelo [Vigil](https://github.com/Lakes777/vigil)
 
 ## Interface
 
@@ -230,10 +232,39 @@ candidatura que não existe, `409` para mudar para a etapa em que ela já está,
 - **Um Postgres por pacote de teste,** subido no primeiro uso (`sync.Once`), com as tabelas limpas por
   teste e encerrado no `TestMain`. Por isso os testes que usam o banco não rodam em paralelo.
 
+## Publicação
+
+Roda numa VM grátis da Oracle Cloud (x86, **1 GB de memória para tudo**), a mesma do
+[Sidekick](https://github.com/Lakes777/sidekick) e do [Vigil](https://github.com/Lakes777/vigil).
+Como a memória é curta, o Pursuit **não sobe outro Postgres nem outro Caddy**: usa os do Vigil.
+
+| Peça | Como |
+|---|---|
+| Imagem | Duas etapas (`Dockerfile`): compila com `golang:1.27-alpine` e leva só o binário estático para uma `distroless/static` sem root, sem shell (~25 MB) |
+| Memória | Contêiner limitado a 64 MB e `GOMEMLIMIT=48MiB`; medido: ~23 MB. Se passar, só ele reinicia |
+| Banco | No Postgres do Vigil, com banco e usuário `pursuit` próprios; o banco do Vigil passou a aceitar só o usuário dele (`revoke connect ... from public`). Até 3 conexões |
+| HTTPS | O Caddy do Vigil importa `~/vigil/sites/*.caddy`; o `publicar.sh` põe lá o `pursuit.caddy` e recarrega o Caddy sem derrubar o Vigil |
+| IP real | `PURSUIT_PROXY_CONFIAVEL` = a rede do Caddy: só dela o `X-Forwarded-For` vale (o limite de login conta por pessoa, não um limite só para todos) |
+| Saúde | `pursuit saude` (o healthcheck do Docker: a imagem não tem curl) e o Vigil confere `/saude` a cada 5 min |
+| Fusos | `time/tzdata` embutido: a imagem não tem o banco de fusos do sistema |
+| Backup | `backup.sh` no cron da VM às 3h20 (7 dias) e `trazer-backup.sh` no Agendador de Tarefas do Windows ("Pursuit - trazer backup", 30 dias no PC) |
+
+```bash
+deploy/preparar-vm.sh    # uma vez: cria banco, usuário e o .env (segredos gerados e guardados só na VM)
+deploy/publicar.sh       # monta a imagem (exige git limpo; leva o commit), manda pela SSH e reinicia
+ssh -t ... 'cd pursuit && docker compose exec api /pursuit definir-senha andre'   # a conta
+ssh ... 'cd pursuit && docker compose exec api /pursuit telegram-teste'           # testa o Telegram
+```
+
+**Plano:** quando sair a VM ARM (4 núcleos e 24 GB, também grátis, mas sem vaga em São Paulo por
+enquanto), o Pursuit muda para lá junto com o Beacon: `pg_dump`, a mesma imagem para ARM e o
+endereço novo no Caddy e no Vigil.
+
 ## Organização
 
 ```
-cmd/pursuit/          main.go (sobe o servidor e desliga com calma) · definir-senha
+cmd/pursuit/          main.go (sobe o servidor e desliga com calma) · definir-senha · saude
+deploy/               compose.yaml · pursuit.caddy · preparar-vm.sh · publicar.sh · backup.sh · trazer-backup.sh
 internal/config/      variáveis de ambiente
 internal/banco/       conexão (pgxpool) e migrações (goose) · migracoes/*.sql · consultas/*.sql
 internal/banco/bd/    código gerado pelo sqlc (não editar)

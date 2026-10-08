@@ -38,3 +38,12 @@ jobs:
           TZ: America/Sao_Paulo
       - name: Testes (Testcontainers sobe o Postgres; -race procura condições de corrida)
         run: go test -race -count=1 ./...
+
+  imagem:
+    # Confere que a imagem de produção monta (a VM é x86, como o runner)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --build-arg COMMIT=${{ github.sha }} -t pursuit:ci .
+      - name: O binário da imagem roda
+        run: docker run --rm pursuit:ci nada 2>&1 | grep -q "Uso:"
