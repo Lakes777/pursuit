@@ -1,0 +1,8 @@
+# Além dos linters padrão: segurança (gosec), corpo de resposta HTTP fechado (bodyclose)
+# e comparação de erros com errors.Is/As (errorlint)
+version: "2"
+linters:
+  enable:
+    - gosec
+    - bodyclose
+    - errorlint

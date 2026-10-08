@@ -1,0 +1,19 @@
+# Postgres para rodar o Pursuit no seu computador: docker compose up -d
+# Porta 5435 (a 5433 é do Vigil e a 5434 do Beacon)
+services:
+  banco:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: pursuit
+      POSTGRES_USER: pursuit
+      POSTGRES_PASSWORD: pursuit
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pursuit -d pursuit"]
+      interval: 5s
+
+volumes:
+  dados:

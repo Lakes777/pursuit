@@ -1,0 +1,12 @@
+# Binários do go build
+/pursuit
+/bin/
+*.exe
+*.test
+*.out
+
+# Segredos
+.env
+
+# Worktrees dos subagentes do Claude Code
+.claude/
