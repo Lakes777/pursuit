@@ -12,6 +12,8 @@ já está pronto.
 
 É o meu primeiro projeto em **Go**.
 
+![Quadro do Pursuit: uma pasta por etapa, com as fichas das candidaturas; as paradas em âmbar](docs/quadro.png)
+
 ## Fases
 
 - [x] **1. Esqueleto:** Go com o roteador da biblioteca padrão, PostgreSQL com migrações (goose), `/saude`, testes com Testcontainers, CI com lint
@@ -20,8 +22,30 @@ já está pronto.
 - [x] **4. Números:** funil por etapa, tempo até a resposta, taxa por fonte (LinkedIn, Gupy...), envios por semana
 - [x] **5. Lembretes:** uma goroutine em segundo plano avisa pelo Telegram as candidaturas paradas há dias (uma mensagem por dia, no máximo)
 - [ ] **6. Beacon:** um link curto por candidatura, com os cliques
-- [ ] **7. Interface:** página própria, com identidade visual
+- [x] **7. Interface:** página servida pelo próprio binário, com identidade visual própria ("Fichário"): quadro por etapa com arrastar e soltar, ficha com o histórico, formulário, números com gráficos e lembretes
 - [ ] **8. Publicação:** imagem Docker só com o binário, numa VM da Oracle. Atenção: atrás do Caddy todo pedido chega com o IP do proxy; o limite de login precisa confiar no `X-Forwarded-For` só quando a conexão vier do proxy
+
+## Interface
+
+Em `/`, servida pelo próprio Go (`internal/web`, com `go:embed`): HTML, CSS e JavaScript puros, sem
+etapa de build nem bibliotecas.
+
+- **Identidade "Fichário":** a busca por vaga como um arquivo de pastas. Cada etapa é uma pasta com
+  orelha e cada candidatura uma ficha; petróleo e verde-água, âmbar só para o que está parado.
+  Fontes Familjen Grotesk e Atkinson Hyperlegible (feita para leitura fácil), servidas localmente.
+- **Quadro:** arrastar a ficha para outra pasta muda a etapa; o botão "Mover" faz o mesmo pelo
+  teclado e no celular, e já sugere a etapa seguinte. Os dois pedem data e observação opcionais.
+- **Ficha da candidatura** com a linha do tempo das etapas; **Números** com o funil, o tempo de
+  resposta, os envios por semana (SVG desenhado à mão) e as fontes; **Lembretes** com o que vai
+  no Telegram e as regras (lidas da API, sem números repetidos no JavaScript).
+- **Segurança:** CSP só `'self'` (nada de CDN, script ou estilo inline), `nosniff`, `DENY`, sem
+  `Referer`. Nenhum dado entra como HTML: os elementos são montados com `textContent`.
+- **Cache:** cada arquivo tem um ETag (sha256 do conteúdo); com `no-cache`, o navegador pergunta
+  sempre, recebe `304` quando nada mudou e vê uma versão nova na hora.
+- **Testes:** as funções puras (datas, escalas dos gráficos, agrupamento do quadro, corpo dos
+  pedidos) com `node --test`, sem dependências, no CI.
+- Feita em duas partes por dois agentes em paralelo, cada um no seu *git worktree* e nos próprios
+  arquivos (quadro/ficha/formulário e números/lembretes), sobre uma base comum; depois revisão e merge.
 
 ## Tecnologias
 
@@ -218,6 +242,8 @@ internal/contas/      senha (argon2id), sessões, limite de tentativas
 internal/numeros/     funil, tempo de resposta, fontes, envios por semana
 internal/lembretes/   candidaturas paradas, mensagem do dia, goroutine
 internal/telegram/    cliente da API de bots (sem vazar o token)
+internal/web/         a interface: static/ (HTML, CSS, JS, fontes) e o servidor com CSP e ETag
+internal/web/testes/  testes do JavaScript (node --test)
 internal/api/         rotas HTTP, login (cookie), erros (RFC 9457), middlewares
 internal/testebanco/  Postgres dos testes (Testcontainers)
 ```
