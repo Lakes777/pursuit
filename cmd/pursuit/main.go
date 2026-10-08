@@ -24,7 +24,9 @@ import (
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/config"
 	"github.com/Lakes777/pursuit/internal/contas"
+	"github.com/Lakes777/pursuit/internal/lembretes"
 	"github.com/Lakes777/pursuit/internal/numeros"
+	"github.com/Lakes777/pursuit/internal/telegram"
 )
 
 func main() {
@@ -66,6 +68,21 @@ func rodar(log *slog.Logger, args []string) error {
 		return definirSenha(ctx, servicoDeContas, args[1], os.Stdin, os.Stderr)
 	}
 
+	// Lembretes pelo Telegram: sem token e sem chat, ficam desligados (a prévia continua na API).
+	// Com só um dos dois, ou com o token mal escrito, a API nem sobe: senão eu passaria semanas
+	// sem lembrete achando que estava tudo certo.
+	var enviador lembretes.Enviador
+	if cfg.TelegramToken == "" && cfg.TelegramChat == "" {
+		log.Warn("lembretes pelo Telegram desligados (sem PURSUIT_TELEGRAM_TOKEN e PURSUIT_TELEGRAM_CHAT)")
+	} else {
+		cliente, err := telegram.Novo(cfg.TelegramURL, cfg.TelegramToken, cfg.TelegramChat)
+		if err != nil {
+			return fmt.Errorf("configuração do Telegram: %w", err)
+		}
+		enviador = cliente
+	}
+	servicoDeLembretes := lembretes.NovoServico(pool, enviador)
+
 	// Abre a porta antes de dizer "no ar": uma porta ocupada dá erro aqui mesmo
 	porta, err := net.Listen("tcp", cfg.Endereco)
 	if err != nil {
@@ -74,8 +91,8 @@ func rodar(log *slog.Logger, args []string) error {
 	servidor := &http.Server{
 		Handler: api.Novo(api.Dependencias{
 			Banco: pool, Candidaturas: candidaturas.NovoServico(pool), Contas: servicoDeContas,
-			Numeros: numeros.NovoServico(pool),
-			Limite:  contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Log: log,
+			Numeros: numeros.NovoServico(pool), Lembretes: servicoDeLembretes,
+			Limite: contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Log: log,
 		}),
 		// Sem limites, um cliente lento seguraria uma conexão para sempre (Slowloris)
 		ReadHeaderTimeout: 5 * time.Second,
@@ -99,6 +116,9 @@ func rodar(log *slog.Logger, args []string) error {
 		tarefas.Wait()
 	}()
 	tarefas.Go(func() { servicoDeContas.LimparSessoesVencidas(ctxTarefas, time.Hour, log) })
+	if enviador != nil {
+		tarefas.Go(func() { servicoDeLembretes.Rodar(ctxTarefas, 15*time.Minute, log) })
+	}
 	log.Info("Pursuit no ar", "endereco", porta.Addr().String())
 
 	select {

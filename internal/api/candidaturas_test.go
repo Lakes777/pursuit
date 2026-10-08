@@ -10,9 +10,11 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/contas"
+	"github.com/Lakes777/pursuit/internal/lembretes"
 	"github.com/Lakes777/pursuit/internal/numeros"
 	"github.com/Lakes777/pursuit/internal/testebanco"
 )
@@ -47,7 +49,7 @@ func novoServidorSemLogin(t *testing.T, loginPorMinuto int) *servidorDeTeste {
 	testebanco.Limpar(t, pool)
 	servidor := httptest.NewServer(Novo(Dependencias{
 		Banco: pool, Candidaturas: candidaturas.NovoServico(pool), Contas: contas.NovoServico(pool),
-		Numeros: numeros.NovoServico(pool), Limite: contas.NovoLimite(loginPorMinuto), Log: semLog,
+		Numeros: numeros.NovoServico(pool), Lembretes: lembretes.NovoServico(pool, nil), Limite: contas.NovoLimite(loginPorMinuto), Log: semLog,
 	}))
 	t.Cleanup(servidor.Close)
 	jarra, err := cookiejar.New(nil)
@@ -274,6 +276,20 @@ func TestNumeros(t *testing.T) {
 
 	n := decodificar[numeros.Numeros](t, r.corpo)
 	if r.status != http.StatusOK || n.Total != 1 || n.Funil[0].Total != 1 || n.Respostas.Aguardando != 1 {
+		t.Errorf("r = %+v", r)
+	}
+}
+
+func TestLembretes(t *testing.T) {
+	s := novoServidor(t)
+	s.pedir(t, "POST", s.URL+"/api/candidaturas",
+		`{"empresa":"Nubank","vaga":"Go","etapa":"enviada","em":"`+time.Now().AddDate(0, 0, -9).Format(time.RFC3339)+`"}`)
+	s.pedir(t, "POST", s.URL+"/api/candidaturas", `{"empresa":"iFood","vaga":"Go","etapa":"enviada"}`)
+
+	r := s.pedir(t, "GET", s.URL+"/api/lembretes", "")
+
+	lista := decodificar[[]lembretes.Parada](t, r.corpo)
+	if r.status != http.StatusOK || len(lista) != 1 || lista[0].Empresa != "Nubank" || lista[0].Dias != 9 {
 		t.Errorf("r = %+v", r)
 	}
 }

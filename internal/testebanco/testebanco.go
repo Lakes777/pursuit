@@ -71,7 +71,7 @@ func Encerrar() {
 // Limpar apaga os dados das tabelas, para cada teste começar do zero.
 func Limpar(t testing.TB, p *pgxpool.Pool) {
 	t.Helper()
-	if _, err := p.Exec(context.Background(), "truncate candidatura, etapa_historico, sessao, usuario restart identity cascade"); err != nil {
+	if _, err := p.Exec(context.Background(), "truncate candidatura, etapa_historico, lembrete, sessao, usuario restart identity cascade"); err != nil {
 		t.Fatalf("limpar o banco: %v", err)
 	}
 }

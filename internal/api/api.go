@@ -10,6 +10,7 @@ import (
 
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/contas"
+	"github.com/Lakes777/pursuit/internal/lembretes"
 	"github.com/Lakes777/pursuit/internal/numeros"
 )
 
@@ -24,6 +25,7 @@ type Dependencias struct {
 	Candidaturas *candidaturas.Servico
 	Contas       *contas.Servico
 	Numeros      *numeros.Servico
+	Lembretes    *lembretes.Servico
 	Limite       *contas.Limite
 	// CookieSeguro: o cookie da sessão só vai por HTTPS (desligar só no computador, sem HTTPS)
 	CookieSeguro bool
@@ -50,6 +52,7 @@ func Novo(d Dependencias) http.Handler {
 	rotas.HandleFunc("DELETE /api/candidaturas/{id}", logado(c.apagar))
 	rotas.HandleFunc("POST /api/candidaturas/{id}/etapas", logado(c.mudarEtapa))
 	rotas.HandleFunc("GET /api/numeros", logado(verNumeros(d.Numeros, d.Log)))
+	rotas.HandleFunc("GET /api/lembretes", logado(verLembretes(d.Lembretes, d.Log)))
 	return registrar(d.Log, recuperar(d.Log, rotas))
 }
 
@@ -76,6 +79,19 @@ func verNumeros(servico *numeros.Servico, log *slog.Logger) http.HandlerFunc {
 			return
 		}
 		responderJSON(w, http.StatusOK, n)
+	}
+}
+
+// verLembretes: o que seria lembrado agora (a mensagem do Telegram junta estas).
+func verLembretes(servico *lembretes.Servico, log *slog.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		lista, err := servico.Paradas(r.Context())
+		if err != nil {
+			log.Error("erro ao montar os lembretes", "erro", err)
+			responderProblema(w, Problema{Titulo: "Erro interno", Status: http.StatusInternalServerError})
+			return
+		}
+		responderJSON(w, http.StatusOK, lista)
 	}
 }
 

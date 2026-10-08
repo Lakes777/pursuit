@@ -18,7 +18,7 @@ já está pronto.
 - [x] **2. Candidaturas:** cadastro com etapas (interesse, enviada, triagem, entrevista, técnica, proposta, contratado, recusada, desisti) e o histórico de cada mudança
 - [x] **3. Login:** conta única com senha (argon2id), sessão por cookie guardada no banco, limite de tentativas; toda rota de `/api` pede login
 - [x] **4. Números:** funil por etapa, tempo até a resposta, taxa por fonte (LinkedIn, Gupy...), envios por semana
-- [ ] **5. Lembretes:** uma goroutine em segundo plano avisa pelo Telegram as candidaturas paradas há dias
+- [x] **5. Lembretes:** uma goroutine em segundo plano avisa pelo Telegram as candidaturas paradas há dias (uma mensagem por dia, no máximo)
 - [ ] **6. Beacon:** um link curto por candidatura, com os cliques
 - [ ] **7. Interface:** página própria, com identidade visual
 - [ ] **8. Publicação:** imagem Docker só com o binário, numa VM da Oracle. Atenção: atrás do Caddy todo pedido chega com o IP do proxy; o limite de login precisa confiar no `X-Forwarded-For` só quando a conexão vier do proxy
@@ -52,6 +52,9 @@ Configuração por variáveis de ambiente:
 | `PURSUIT_BANCO_URL` | `postgres://pursuit:pursuit@localhost:5435/pursuit` | Conexão com o Postgres |
 | `PURSUIT_COOKIE_SEGURO` | `true` | Cookie da sessão só por HTTPS; `false` só no computador |
 | `PURSUIT_LOGIN_POR_MINUTO` | `10` | Tentativas de login por minuto por IP |
+| `PURSUIT_TELEGRAM_TOKEN` | (vazio) | Token do bot (o do Sidekick). Sem ele, os lembretes ficam desligados |
+| `PURSUIT_TELEGRAM_CHAT` | (vazio) | O meu chat com o bot. Os dois vazios desligam os lembretes; só um, ou um token mal escrito, impede a API de subir |
+| `PURSUIT_TELEGRAM_URL` | (vazio) | Endereço da API do Telegram; vazio = `api.telegram.org` (só os testes trocam) |
 
 ## Rotas
 
@@ -69,6 +72,7 @@ Configuração por variáveis de ambiente:
 | `DELETE` | `/api/candidaturas/{id}` | Apaga a candidatura e o histórico |
 | `POST` | `/api/candidaturas/{id}/etapas` | Muda a etapa: `etapa`, opcionais `observacao` e `em` |
 | `GET` | `/api/numeros` | Funil, tempo de resposta, fontes, etapas atuais e envios por semana (abaixo) |
+| `GET` | `/api/lembretes` | O que seria lembrado agora (as candidaturas paradas além do prazo) |
 
 Todas as rotas de `/api`, menos entrar e sair, respondem `401` sem login:
 
@@ -107,6 +111,39 @@ curl -b cookies -X POST 127.0.0.1:8095/api/candidaturas/1/etapas -d '{"etapa":"t
   gráfico precisa delas). Conta o primeiro envio de cada candidatura: voltar para "enviada" não
   conta de novo, e uma cadastrada direto na entrevista entra no funil mas não nas semanas.
 - Tudo numa transação só de leitura (*repeatable read*): os números saem da mesma "foto" do banco.
+
+### Lembretes
+
+```
+Pursuit: 2 candidaturas paradas.
+
+- Nubank (Back-end Go): enviada há 8 dias, sem resposta: vale mandar uma mensagem ao recrutador.
+- iFood (Java): proposta há 3 dias: falta responder.
+```
+
+| Etapa | Parada há | | Etapa | Parada há |
+|---|---|---|---|---|
+| Interesse | 10 dias | | Entrevista | 5 dias |
+| Enviada | 7 dias | | Técnica | 5 dias |
+| Triagem | 5 dias | | Proposta | 2 dias |
+
+- **Uma goroutine** tenta ao subir e depois a cada 15 min, e para junto com o servidor (`context`).
+- **Uma mensagem por dia, no máximo,** juntando todas, entre 9h e 21h de Brasília: se a VM estava
+  fora às 9h, sai mais tarde no mesmo dia, mas nunca de madrugada. Os dias são do calendário de
+  Brasília, não horas corridas (enviada no dia 1º às 18h é lembrada no dia 8 às 9h).
+- **Até o limite do Telegram** (4096 caracteres): as mais antigas primeiro; as que não couberem
+  ficam para o dia seguinte ("E mais N"). Sem isso, muitas paradas travariam os lembretes.
+- **Sem repetir:** cada candidatura é lembrada uma vez por mudança de etapa e, se continuar parada,
+  de novo a cada 7 dias. Mudar de etapa recomeça a contagem.
+- **Gravado antes de mandar:** os lembretes vão para a tabela `lembrete` numa transação com uma
+  trava do Postgres (`pg_advisory_xact_lock`), e a chamada ao Telegram fica fora da transação. Se o
+  Telegram falhar, os lembretes são apagados e a próxima tentativa (15 min depois) manda. É
+  entrega "pelo menos uma vez": se a mensagem chegar mas a resposta do Telegram não, ela sai de
+  novo (uma repetida rara é melhor que um lembrete perdido). O desligamento não corta um envio no meio.
+- **O token nunca aparece em erro nem no log:** o erro do `net/http` traz a URL inteira, com o
+  token, então só o motivo é repassado. A mensagem vai sem formatação: o que eu digitei numa
+  candidatura não vira HTML.
+- Os prazos ficam num mapa ao lado das etapas; um teste falha se uma etapa em andamento ficar sem prazo.
 
 Erros no formato da RFC 9457 (`application/problem+json`), com o problema de cada campo:
 
@@ -178,6 +215,8 @@ internal/banco/bd/    código gerado pelo sqlc (não editar)
 internal/candidaturas/ regras: validação, etapas, histórico, transações
 internal/contas/      senha (argon2id), sessões, limite de tentativas
 internal/numeros/     funil, tempo de resposta, fontes, envios por semana
+internal/lembretes/   candidaturas paradas, mensagem do dia, goroutine
+internal/telegram/    cliente da API de bots (sem vazar o token)
 internal/api/         rotas HTTP, login (cookie), erros (RFC 9457), middlewares
 internal/testebanco/  Postgres dos testes (Testcontainers)
 ```

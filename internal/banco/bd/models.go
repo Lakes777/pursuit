@@ -31,6 +31,13 @@ type EtapaHistorico struct {
 	Observacao    *string
 }
 
+type Lembrete struct {
+	ID            int64
+	CandidaturaID int64
+	HistoricoID   int64
+	EnviadoEm     time.Time
+}
+
 type Sessao struct {
 	TokenHash []byte
 	UsuarioID int64

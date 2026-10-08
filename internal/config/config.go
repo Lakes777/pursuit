@@ -20,6 +20,10 @@ type Config struct {
 	CookieSeguro bool
 	// LoginPorMinuto: tentativas de login por minuto por IP.
 	LoginPorMinuto int
+	// Telegram dos lembretes (o token do Sidekick e o meu chat). Sem eles, os lembretes ficam desligados.
+	TelegramToken string
+	TelegramChat  string
+	TelegramURL   string // vazio = api.telegram.org
 }
 
 // Padrões para o compose.yaml da raiz (Postgres na porta 5435).
@@ -45,6 +49,9 @@ func Carregar(ler func(string) string) (Config, error) {
 		return Config{}, errors.New("PURSUIT_LOGIN_POR_MINUTO deve ser um número a partir de 1")
 	}
 	c.LoginPorMinuto = porMinuto
+	c.TelegramToken = strings.TrimSpace(ler("PURSUIT_TELEGRAM_TOKEN"))
+	c.TelegramChat = strings.TrimSpace(ler("PURSUIT_TELEGRAM_CHAT"))
+	c.TelegramURL = strings.TrimSpace(ler("PURSUIT_TELEGRAM_URL"))
 	u, err := url.Parse(c.BancoURL)
 	if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Host == "" {
 		// Sem repetir o valor no erro: a URL traz a senha do banco
