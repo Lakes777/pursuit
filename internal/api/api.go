@@ -54,6 +54,7 @@ func Novo(d Dependencias) http.Handler {
 	rotas.HandleFunc("POST /api/candidaturas/{id}/etapas", logado(c.mudarEtapa))
 	rotas.HandleFunc("GET /api/numeros", logado(verNumeros(d.Numeros, d.Log)))
 	rotas.HandleFunc("GET /api/lembretes", logado(verLembretes(d.Lembretes, d.Log)))
+	rotas.HandleFunc("GET /api/lembretes/prazos", logado(prazosDosLembretes))
 	// A interface (HTML, CSS, JS) em tudo o que não é /api nem /saude. Um /api desconhecido
 	// continua respondendo 404 em JSON, não a página.
 	rotas.Handle("GET /", web.Handler())
@@ -100,6 +101,12 @@ func verLembretes(servico *lembretes.Servico, log *slog.Logger) http.HandlerFunc
 		}
 		responderJSON(w, http.StatusOK, lista)
 	}
+}
+
+// prazosDosLembretes: depois de quantos dias parada em cada etapa sai um lembrete (a tela mostra
+// a tabela sem repetir os números no JavaScript).
+func prazosDosLembretes(w http.ResponseWriter, _ *http.Request) {
+	responderJSON(w, http.StatusOK, lembretes.AsRegras())
 }
 
 func responderJSON(w http.ResponseWriter, status int, corpo any) {

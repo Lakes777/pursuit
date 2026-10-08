@@ -73,6 +73,7 @@ Configuração por variáveis de ambiente:
 | `POST` | `/api/candidaturas/{id}/etapas` | Muda a etapa: `etapa`, opcionais `observacao` e `em` |
 | `GET` | `/api/numeros` | Funil, tempo de resposta, fontes, etapas atuais e envios por semana (abaixo) |
 | `GET` | `/api/lembretes` | O que seria lembrado agora (as candidaturas paradas além do prazo) |
+| `GET` | `/api/lembretes/prazos` | Os prazos por etapa (`etapa`, `nome`, `dias`), na ordem do processo; a tela lê daqui |
 
 Todas as rotas de `/api`, menos entrar e sair, respondem `401` sem login:
 
