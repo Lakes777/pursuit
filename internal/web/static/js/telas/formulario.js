@@ -4,7 +4,7 @@ import { ErroDaAPI } from '../api.js'
 import { el, icone, trocar } from '../dom.js'
 import { campo as campoComErro } from '../janelas.js'
 import { dataAPIParaLocal } from '../logica.js'
-import { conferirFormulario, corpoDoFormulario, errosDoPedido, fontesSugeridas, opcoesDeModalidade } from '../quadro-logica.js'
+import { conferirFormulario, corpoDoFormulario, errosDoPedido, fontesSugeridas, MENSAGEM_DATA_INCOMPLETA, opcoesDeModalidade } from '../quadro-logica.js'
 import { naoEncontrada } from './candidatura.js'
 import { registrarTela } from './registro.js'
 
@@ -96,6 +96,8 @@ async function montarFormulario(container, params, ctx, id) {
     geral.hidden = true
 
     const locais = conferirFormulario(valores)
+    // Data digitada pela metade: o campo fica vazio para o JavaScript, e a API registraria "agora"
+    if (campos.em?.controle.validity.badInput) locais.em = MENSAGEM_DATA_INCOMPLETA
     if (Object.keys(locais).length) return mostrarErros(errosDoPedido({ status: 422, campos: locais }, Object.keys(campos)))
 
     enviando = true

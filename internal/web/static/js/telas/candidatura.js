@@ -4,7 +4,7 @@ import { ErroDaAPI } from '../api.js'
 import { el, icone, trocar } from '../dom.js'
 import { abrirMudancaDeEtapa, confirmar, fecharJanelas } from '../janelas.js'
 import { formatarData, formatarDataHora, nomeDaEtapa } from '../logica.js'
-import { diasNaEtapa, nomeDaModalidade, textoDiasNaEtapa, textoDoPasso } from '../quadro-logica.js'
+import { diasNaEtapa, linkSeguro, nomeDaModalidade, textoDiasNaEtapa, textoDoPasso } from '../quadro-logica.js'
 import { registrarTela } from './registro.js'
 
 /** O aviso de candidatura que não existe (também usado pelo formulário de edição). */
@@ -62,7 +62,9 @@ registrarTela('candidatura', {
       })
 
       const dados = [
-        ['Link', c.link ? el('a', { href: c.link, target: '_blank', rel: 'noopener noreferrer', class: 'link-vaga' }, c.link, icone('link')) : null],
+        ['Link', !c.link ? null
+          : linkSeguro(c.link) ? el('a', { href: c.link, target: '_blank', rel: 'noopener noreferrer', class: 'link-vaga' }, c.link, icone('link'))
+            : el('span', { class: 'link-vaga' }, c.link)],
         ['Fonte', c.fonte],
         ['Modalidade', nomeDaModalidade(c.modalidade)],
         ['Salário', c.salario],

@@ -3,7 +3,7 @@
 // Esc fechando. Cada janela some do DOM ao fechar.
 import { el, trocar } from './dom.js'
 import { dataAPIParaLocal, nomeDaEtapa } from './logica.js'
-import { corpoDaMudanca, errosDoPedido } from './quadro-logica.js'
+import { corpoDaMudanca, errosDoPedido, etapaSugerida, MENSAGEM_DATA_INCOMPLETA } from './quadro-logica.js'
 
 const abertas = new Set()
 let sequencia = 0
@@ -17,6 +17,11 @@ export function fecharJanelas() {
 function abrirJanela(...filhos) {
   const antes = document.activeElement
   const janela = el('dialog', {}, ...filhos)
+  // Com um pedido a caminho, o Esc não fecha: senão a tela mostraria o estado antigo de algo que
+  // o servidor já mudou (uma candidatura já apagada, uma ficha já movida)
+  janela.addEventListener('cancel', (evento) => {
+    if (janela.dataset.enviando) evento.preventDefault()
+  })
   janela.addEventListener('close', () => {
     abertas.delete(janela)
     janela.remove()
@@ -69,15 +74,13 @@ export function abrirMudancaDeEtapa(ctx, candidatura, destino = null) {
     const geral = el('p', { class: 'erro', role: 'alert', hidden: true })
 
     const opcoes = ctx.etapas.filter((e) => e.etapa !== candidatura.etapa)
-    const escolha = campo('Para qual etapa', el('select', { id: `mover-etapa-${n}`, name: 'etapa' },
+    // A próxima etapa do processo, que é a mudança mais comum; sem uma (etapa final), nada vem
+    // escolhido: um Enter apressado não pode mandar a candidatura de volta ao começo
+    const sugerida = destino ?? etapaSugerida(ctx.etapas, candidatura.etapa)
+    const escolha = campo('Para qual etapa', el('select', { id: `mover-etapa-${n}`, name: 'etapa', required: true },
+      sugerida ? null : el('option', { value: '' }, 'Escolha a etapa'),
       opcoes.map((e) => el('option', { value: e.etapa }, e.nome))))
-    if (destino) escolha.controle.value = destino
-    else {
-      // A próxima etapa do processo, que é a mudança mais comum
-      const atual = ctx.etapas.findIndex((e) => e.etapa === candidatura.etapa)
-      const proxima = ctx.etapas.slice(atual + 1).find((e) => !e.final) ?? opcoes[0]
-      if (proxima) escolha.controle.value = proxima.etapa
-    }
+    escolha.controle.value = sugerida ?? ''
     const data = campo('Quando', el('input', { id: `mover-em-${n}`, name: 'em', type: 'datetime-local', max: dataAPIParaLocal(null) }),
       'Deixe vazio para agora.')
     const observacao = campo('Observação', el('textarea', { id: `mover-obs-${n}`, name: 'observacao', maxlength: 2000, rows: 3 }),
@@ -85,7 +88,7 @@ export function abrirMudancaDeEtapa(ctx, candidatura, destino = null) {
     const campos = { etapa: escolha, em: data, observacao }
 
     const atualizarTitulo = () => {
-      titulo.textContent = `Mover para ${nomeDaEtapa(ctx.etapas, escolha.controle.value)}`
+      titulo.textContent = escolha.controle.value ? `Mover para ${nomeDaEtapa(ctx.etapas, escolha.controle.value)}` : 'Mover para outra etapa'
     }
     escolha.controle.addEventListener('change', atualizarTitulo)
     atualizarTitulo()
@@ -105,7 +108,18 @@ export function abrirMudancaDeEtapa(ctx, candidatura, destino = null) {
       if (salvar.disabled) return
       for (const c of Object.values(campos)) c.mostrarErro('')
       geral.hidden = true
+      if (!escolha.controle.value) {
+        escolha.mostrarErro('Escolha a etapa.')
+        return escolha.controle.focus()
+      }
+      // Data digitada pela metade: o campo fica vazio para o JavaScript, e a API registraria "agora"
+      if (data.controle.validity.badInput) {
+        data.mostrarErro(MENSAGEM_DATA_INCOMPLETA)
+        return data.controle.focus()
+      }
       salvar.disabled = true
+      cancelar.disabled = true
+      janela.dataset.enviando = 'sim'
       try {
         resultado = await ctx.api('POST', `/api/candidaturas/${candidatura.id}/etapas`,
           corpoDaMudanca(escolha.controle.value, data.controle.value, observacao.controle.value))
@@ -122,6 +136,8 @@ export function abrirMudancaDeEtapa(ctx, candidatura, destino = null) {
         if (primeiro) campos[primeiro].controle.focus()
       } finally {
         salvar.disabled = false
+        cancelar.disabled = false
+        delete janela.dataset.enviando
       }
     })
     cancelar.addEventListener('click', () => janela.close())
@@ -154,6 +170,8 @@ export function confirmar({ titulo, texto, botao, acao }) {
     sim.addEventListener('click', async () => {
       if (sim.disabled) return
       sim.disabled = true
+      nao.disabled = true
+      janela.dataset.enviando = 'sim'
       geral.hidden = true
       try {
         await acao()
@@ -165,6 +183,8 @@ export function confirmar({ titulo, texto, botao, acao }) {
         geral.hidden = false
       } finally {
         sim.disabled = false
+        nao.disabled = false
+        delete janela.dataset.enviando
       }
     })
     // Numa ação sem volta, o foco começa no "Cancelar": um Enter apressado não apaga nada

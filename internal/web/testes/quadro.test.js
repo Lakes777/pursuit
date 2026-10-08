@@ -2,7 +2,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  agruparPorEtapa, compararFichas, conferirFormulario, corpoDaMudanca, corpoDoFormulario, diasNaEtapa, errosDoPedido,
+  agruparPorEtapa, compararFichas, conferirFormulario, corpoDaMudanca, corpoDoFormulario, diasNaEtapa, errosDoPedido, etapaSugerida, linkSeguro,
   fontesSugeridas, nomeDaModalidade, opcoesDeModalidade, primeiraMaiuscula, textoDiasNaEtapa, textoDoPasso, totalDeFichas,
 } from '../static/js/quadro-logica.js'
 
@@ -58,8 +58,6 @@ test('compararFichas: empate na data vai pelo id', () => {
 test('diasNaEtapa conta pela última mudança de etapa, não pela edição', () => {
   const c = candidatura(1, 'enviada', '2026-10-01T18:00:00-03:00', { atualizadaEm: '2026-10-08T14:00:00-03:00' })
   assert.equal(diasNaEtapa(c, agora), 7)
-  // Sem etapaDesde (API antiga), cai na última atualização
-  assert.equal(diasNaEtapa({ atualizadaEm: '2026-10-06T10:00:00-03:00' }, agora), 2)
   // Relógio do celular atrasado: nunca negativo
   assert.equal(diasNaEtapa(candidatura(1, 'enviada', '2026-10-09T10:00:00-03:00'), agora), 0)
 })
@@ -126,4 +124,22 @@ test('textoDoPasso e primeiraMaiuscula', () => {
   assert.equal(textoDoPasso({ de: 'enviada', para: 'triagem' }, nome), 'Candidatura enviada → Triagem')
   assert.equal(primeiraMaiuscula('óbvio'), 'Óbvio')
   assert.equal(primeiraMaiuscula(undefined), '')
+})
+
+test('etapaSugerida: a seguinte no processo, nunca voltar ao começo', () => {
+  const todas = ['interesse', 'enviada', 'triagem', 'entrevista', 'tecnica', 'proposta'].map((etapa) => ({ etapa, final: false }))
+    .concat(['contratado', 'recusada', 'desisti'].map((etapa) => ({ etapa, final: true })))
+  assert.equal(etapaSugerida(todas, 'interesse'), 'enviada')
+  assert.equal(etapaSugerida(todas, 'proposta'), 'contratado')
+  assert.equal(etapaSugerida(todas, 'recusada'), null)
+  assert.equal(etapaSugerida(todas, 'contratado'), null)
+  assert.equal(etapaSugerida(todas, 'nenhuma'), null)
+})
+
+test('linkSeguro: só http e https viram link', () => {
+  assert.equal(linkSeguro('https://vagas.nubank.com/1'), true)
+  assert.equal(linkSeguro('HTTP://exemplo.com'), true)
+  assert.equal(linkSeguro('javascript:alert(1)'), false)
+  assert.equal(linkSeguro('//exemplo.com'), false)
+  assert.equal(linkSeguro(null), false)
 })

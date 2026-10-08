@@ -21,10 +21,27 @@ export function opcoesDeModalidade() {
   return [['', 'Não informada'], ...Object.entries(MODALIDADES)]
 }
 
-/** Dias na etapa atual (pela última mudança de etapa; sem ela, pela última atualização). */
+/** Dias na etapa atual, pela última mudança de etapa (a edição dos dados não conta). */
 export function diasNaEtapa(candidatura, agora = new Date()) {
-  const desde = candidatura.etapaDesde ?? candidatura.atualizadaEm ?? candidatura.criadaEm
-  return Math.max(0, diasDesde(desde, agora))
+  return Math.max(0, diasDesde(candidatura.etapaDesde, agora))
+}
+
+/**
+ * A etapa que o "Mover" sugere: a seguinte na ordem do processo (de Proposta, Contratado).
+ * null quando a atual já é final ou é a última: aí a pessoa escolhe.
+ */
+export function etapaSugerida(etapas, atual) {
+  const i = etapas.findIndex((e) => e.etapa === atual)
+  if (i < 0 || etapas[i].final) return null
+  return etapas[i + 1]?.etapa ?? null
+}
+
+/** Para um datetime-local digitado pela metade (validity.badInput). */
+export const MENSAGEM_DATA_INCOMPLETA = 'Data incompleta: preencha o dia e a hora, ou deixe vazio para agora.'
+
+/** O link da vaga só vira link se for http(s) (o servidor já garante; aqui é a segunda trava). */
+export function linkSeguro(link) {
+  return typeof link === 'string' && /^https?:\/\//i.test(link)
 }
 
 /** 0 → "entrou hoje nesta etapa", 1 → "há 1 dia nesta etapa", 8 → "há 8 dias nesta etapa" */
@@ -38,8 +55,8 @@ export function textoDiasNaEtapa(dias) {
  * tempo); empate pela de id menor (cadastrada antes), para a ordem não pular entre recargas.
  */
 export function compararFichas(a, b) {
-  const da = new Date(a.etapaDesde ?? a.atualizadaEm).getTime()
-  const db = new Date(b.etapaDesde ?? b.atualizadaEm).getTime()
+  const da = new Date(a.etapaDesde).getTime()
+  const db = new Date(b.etapaDesde).getTime()
   return da - db || a.id - b.id
 }
 
