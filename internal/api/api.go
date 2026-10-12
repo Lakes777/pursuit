@@ -36,7 +36,9 @@ type Dependencias struct {
 	CookieSeguro bool
 	// Proxies: de onde vale o X-Forwarded-For (o Caddy, em produção); vazio = só o IP da conexão
 	Proxies []netip.Prefix
-	Log     *slog.Logger
+	// Demo: modo demonstração (a entrada como visitante). Desligado, a rota do visitante dá 404.
+	Demo bool
+	Log  *slog.Logger
 }
 
 // Novo monta as rotas. Usa o roteador da biblioteca padrão (Go 1.22+), que já entende
@@ -44,11 +46,14 @@ type Dependencias struct {
 // menos entrar e sair; /saude é pública (para o Docker e o Vigil).
 func Novo(d Dependencias) http.Handler {
 	c := rotasDeCandidaturas{servico: d.Candidaturas, log: d.Log}
-	s := rotasDeSessao{contas: d.Contas, limite: d.Limite, cookieSeguro: d.CookieSeguro, proxies: d.Proxies, log: d.Log}
+	s := rotasDeSessao{contas: d.Contas, limite: d.Limite, cookieSeguro: d.CookieSeguro, proxies: d.Proxies, demo: d.Demo, log: d.Log}
 	logado := s.exigirLogin
 	rotas := http.NewServeMux()
 	rotas.HandleFunc("GET /saude", saude(d.Banco, d.Log))
 	rotas.HandleFunc("POST /api/sessao", s.entrar)
+	// Públicas: a tela de entrada pergunta se é a demonstração antes de haver sessão
+	rotas.HandleFunc("POST /api/sessao/visitante", s.entrarComoVisitante)
+	rotas.HandleFunc("GET /api/demo", s.estadoDaDemo)
 	rotas.HandleFunc("DELETE /api/sessao", s.sair)
 	rotas.HandleFunc("GET /api/sessao", logado(s.quemSou))
 	rotas.HandleFunc("GET /api/etapas", logado(etapas))

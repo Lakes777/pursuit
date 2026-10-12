@@ -20,6 +20,7 @@ type rotasDeSessao struct {
 	limite       *contas.Limite
 	cookieSeguro bool
 	proxies      []netip.Prefix
+	demo         bool
 	log          *slog.Logger
 }
 
@@ -29,10 +30,7 @@ type entradaLogin struct {
 }
 
 func (s rotasDeSessao) entrar(w http.ResponseWriter, r *http.Request) {
-	if !s.limite.Permitir(ipDoPedido(r, s.proxies), time.Now()) {
-		w.Header().Set("Retry-After", "60")
-		responderProblema(w, Problema{Titulo: "Tentativas demais", Status: http.StatusTooManyRequests,
-			Detalhe: "espere um minuto e tente de novo"})
+	if !s.dentroDoLimite(w, r) {
 		return
 	}
 	var entrada entradaLogin
@@ -51,6 +49,43 @@ func (s rotasDeSessao) entrar(w http.ResponseWriter, r *http.Request) {
 	}
 	s.gravarCookie(w, token, time.Now().Add(contas.Duracao))
 	responderJSON(w, http.StatusOK, usuario)
+}
+
+// entrarComoVisitante abre uma sessão na conta de exemplo, sem senha (só no modo demonstração).
+// Passa pelo mesmo limite por IP do login: sem ele, um script abriria sessões sem fim no banco.
+func (s rotasDeSessao) entrarComoVisitante(w http.ResponseWriter, r *http.Request) {
+	// Desligado, é como se a rota não existisse (e nem gasta uma tentativa do limite)
+	if !s.demo {
+		responderProblema(w, Problema{Titulo: "Rota não encontrada", Status: http.StatusNotFound})
+		return
+	}
+	if !s.dentroDoLimite(w, r) {
+		return
+	}
+	token, usuario, err := s.contas.EntrarComoVisitante(r.Context())
+	if err != nil {
+		s.log.Error("erro ao entrar como visitante", "erro", err)
+		responderProblema(w, Problema{Titulo: "Erro interno", Status: http.StatusInternalServerError})
+		return
+	}
+	s.gravarCookie(w, token, time.Now().Add(contas.Duracao))
+	responderJSON(w, http.StatusOK, usuario)
+}
+
+// estadoDaDemo diz à tela de entrada se mostra o botão "Entrar como visitante".
+func (s rotasDeSessao) estadoDaDemo(w http.ResponseWriter, _ *http.Request) {
+	responderJSON(w, http.StatusOK, map[string]bool{"demo": s.demo})
+}
+
+// dentroDoLimite conta a tentativa do IP e, passado o limite, já responde 429.
+func (s rotasDeSessao) dentroDoLimite(w http.ResponseWriter, r *http.Request) bool {
+	if s.limite.Permitir(ipDoPedido(r, s.proxies), time.Now()) {
+		return true
+	}
+	w.Header().Set("Retry-After", "60")
+	responderProblema(w, Problema{Titulo: "Tentativas demais", Status: http.StatusTooManyRequests,
+		Detalhe: "espere um minuto e tente de novo"})
+	return false
 }
 
 func (s rotasDeSessao) quemSou(w http.ResponseWriter, r *http.Request) {
