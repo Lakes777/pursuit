@@ -85,6 +85,8 @@ Configuração por variáveis de ambiente:
 | `PURSUIT_BEACON_URL` | (vazio) | Endereço do [Beacon](https://github.com/Lakes777/beacon). Sem ele e sem a chave, os links ficam desligados |
 | `PURSUIT_BEACON_CHAVE` | (vazio) | A chave de integração do Beacon (`Integracao__Chave` lá). Os dois vazios desligam; só um, ou uma chave curta, impede a API de subir |
 | `PURSUIT_BEACON_DESTINO` | `https://lakes777.github.io` | Para onde os links levam |
+| `PURSUIT_PROXY_CONFIAVEL` | (vazio) | De onde o `X-Forwarded-For` vale (a rede do Caddy), faixas separadas por vírgula |
+| `PURSUIT_DEMO` | `false` | Modo [demonstração](#demonstração): entrada como visitante, dados de exemplo, Telegram desligado. Só na instância separada |
 
 ## Rotas
 
@@ -94,6 +96,8 @@ Configuração por variáveis de ambiente:
 | `POST` | `/api/sessao` | Entra: `usuario` e `senha`; grava o cookie da sessão (pública, com limite de tentativas: `429`) |
 | `GET` | `/api/sessao` | Quem está logado |
 | `DELETE` | `/api/sessao` | Sai: apaga a sessão no banco e o cookie (pública) |
+| `POST` | `/api/sessao/visitante` | Só na demonstração: entra na conta de exemplo, sem senha (pública, com o mesmo limite do login); `404` com o modo desligado |
+| `GET` | `/api/demo` | `{"demo": true}` ou `false`: se a tela de entrada mostra o botão de visitante (pública) |
 | `GET` | `/api/etapas` | As etapas na ordem do processo, com o nome para a tela e se é final |
 | `POST` | `/api/candidaturas` | Cadastra: `empresa` e `vaga` obrigatórios; `link`, `fonte`, `modalidade` (`remoto`, `hibrido`, `presencial`), `salario`, `anotacoes`; opcionais `etapa` inicial (padrão `interesse`), `observacao` e `em` (quando foi, pode ser no passado; formato RFC 3339 com fuso, como `2026-10-06T10:00:00-03:00`) |
 | `GET` | `/api/candidaturas?etapa=&busca=` | Lista, da mexida por último à mais antiga; filtra por etapa e busca na empresa ou na vaga. Cada uma traz `etapaDesde`, a última mudança de etapa (`atualizadaEm` muda também ao editar) |
@@ -109,7 +113,7 @@ Configuração por variáveis de ambiente:
 | `GET` | `/api/candidaturas/{id}/beacon/cliques` | Quantas vezes o link foi aberto, por dia (`total`, `porDia`), sem robôs |
 | `GET` | `/api/beacon/cliques` | Os cliques de todos os links de uma vez (`porLink`): o quadro marca as abertas |
 
-Todas as rotas de `/api`, menos entrar e sair, respondem `401` sem login:
+Todas as rotas de `/api`, menos entrar, sair e as da demonstração, respondem `401` sem login:
 
 ```bash
 curl -c cookies -X POST 127.0.0.1:8095/api/sessao -d '{"usuario":"andre","senha":"..."}'
@@ -213,6 +217,44 @@ Erros no formato da RFC 9457 (`application/problem+json`), com o problema de cad
 `400` para JSON inválido (inclusive campo desconhecido, como um `emrpesa` digitado errado), `404` para
 candidatura que não existe, `409` para mudar para a etapa em que ela já está, `413` para corpo acima de 64 KB.
 
+## Demonstração
+
+O sistema no ar é de uso pessoal e pede senha. Para quem quer ver o Pursuit funcionando (um
+recrutador, pelo portfólio), há uma **segunda instância** com `PURSUIT_DEMO=true`, em que dá para
+entrar sem senha e mexer à vontade em dados de exemplo.
+
+- **Instância separada, banco separado:** outro contêiner, outro banco. A demonstração não é uma
+  "conta a mais" no sistema de verdade: as candidaturas não são separadas por pessoa, e o visitante
+  veria (e poderia apagar) as minhas. Assim, os dados reais nunca se misturam com os de exemplo, e
+  uma falha na demonstração não chega ao banco real. O mesmo binário serve os dois; só a variável muda.
+- **Conta "visitante":** na tela de entrada, o botão **Entrar como visitante** (`POST
+  /api/sessao/visitante`) abre uma sessão normal, com o mesmo cookie e o mesmo limite de tentativas por
+  IP do login. A conta não tem senha utilizável: o hash guardado não é um argon2id válido, então pelo
+  formulário ela responde como um nome que não existe. Com o modo desligado, a rota responde `404` e a
+  conta nem é criada. Dentro do app, uma faixa no topo avisa que os dados voltam ao original a cada hora.
+- **Semeadura:** `pursuit semear-demo` apaga as candidaturas (com o histórico e os lembretes) e as
+  sessões do visitante, e põe de volta 9 estágios de exemplo, espalhados por todas as etapas, com
+  histórico, fontes, anotações, três paradas além do prazo dos lembretes e três com link do Beacon. As
+  datas são **relativas a hoje** no horário de Brasília ("enviada há 11 dias, às 13h30"): os exemplos
+  nunca envelhecem nem caem no futuro. Tudo numa transação, com uma trava do Postgres: quem está
+  olhando vê os dados antigos ou os novos, nunca o banco vazio. Os ids recomeçam do 1, então o link
+  de uma ficha continua o mesmo.
+- **Proteção do banco real:** `semear-demo` sem `PURSUIT_DEMO=true` recusa (saída 1) antes mesmo de
+  conectar ao banco, porque ele começa apagando tudo.
+- **Primeira partida:** com o modo ligado e o banco sem candidaturas, a API semeia sozinha ao subir.
+- **De hora em hora:** um cron na VM repõe os dados (o `-T` porque o cron não tem terminal):
+
+  ```
+  0 * * * * cd ~/pursuit-demo && docker compose exec -T api /pursuit semear-demo >> ~/pursuit-demo/semear.log 2>&1
+  ```
+
+- **Telegram desligado na demonstração,** mesmo com token: o visitante não pode fazer o bot mandar
+  mensagens para mim. A tela de lembretes continua mostrando o que seria lembrado.
+- **Beacon opcional,** como no sistema de verdade: a demonstração do Pursuit aponta para a demonstração
+  do Beacon. Os links de exemplo são códigos inventados.
+- `definir-senha` continua funcionando (para eu conferir a instância com a minha conta); o visitante não
+  conta como "outra conta" ali, mas não pode receber senha.
+
 ## Decisões
 
 - **Etapa só muda pela rota de etapas, numa transação:** a linha da candidatura é travada
@@ -297,13 +339,14 @@ conferida nos dois lados, publicação e, só então, o endereço antigo virou u
 ## Organização
 
 ```
-cmd/pursuit/          main.go (sobe o servidor e desliga com calma) · definir-senha · saude
+cmd/pursuit/          main.go (sobe o servidor e desliga com calma) · definir-senha · saude · semear-demo
 deploy/               compose.yaml · pursuit.caddy · preparar-vm.sh · publicar.sh · backup.sh · trazer-backup.sh
 internal/config/      variáveis de ambiente
 internal/banco/       conexão (pgxpool) e migrações (goose) · migracoes/*.sql · consultas/*.sql
 internal/banco/bd/    código gerado pelo sqlc (não editar)
 internal/candidaturas/ regras: validação, etapas, histórico, transações
-internal/contas/      senha (argon2id), sessões, limite de tentativas
+internal/contas/      senha (argon2id), sessões, limite de tentativas, conta do visitante
+internal/demo/        os dados de exemplo da demonstração (semeadura)
 internal/numeros/     funil, tempo de resposta, fontes, envios por semana
 internal/lembretes/   candidaturas paradas, mensagem do dia, goroutine
 internal/telegram/    cliente da API de bots (sem vazar o token)
