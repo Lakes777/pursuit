@@ -20,6 +20,8 @@ type Candidatura struct {
 	Anotacoes    *string
 	Etapa        string
 	AtualizadaEm time.Time
+	BeaconCodigo *string
+	BeaconUrl    *string
 }
 
 type EtapaHistorico struct {

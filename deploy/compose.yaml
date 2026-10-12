@@ -9,7 +9,8 @@ services:
     image: pursuit:latest
     restart: unless-stopped
     # PURSUIT_BANCO_URL, PURSUIT_TELEGRAM_TOKEN, PURSUIT_TELEGRAM_CHAT e PURSUIT_PROXY_CONFIAVEL
-    # ficam no .env da VM (criado pelo preparar-vm.sh) e nunca saem de lá
+    # ficam no .env da VM (criado pelo preparar-vm.sh); PURSUIT_BEACON_URL e _CHAVE entram à mão
+    # nele (a chave é a INTEGRACAO_CHAVE do .env do Beacon). Nenhum deles sai de lá
     env_file: .env
     mem_limit: 64m
     logging:

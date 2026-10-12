@@ -111,3 +111,14 @@ dialog .erro { margin-top: 12px }
   .lista-dados { grid-template-columns: minmax(0, 1fr); gap: 2px }
   .lista-dados dd { margin-bottom: 8px }
 }
+
+/* Link do portfólio (Beacon) na ficha */
+.link-portfolio { grid-column: 1 / -1; display: grid; gap: 10px; justify-items: start }
+.explica-link { margin: 0; color: var(--apagado); max-width: 62ch }
+.linha-link { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; max-width: 100% }
+.endereco-link { font: 600 .95rem/1.4 ui-monospace, "Cascadia Mono", monospace; color: var(--verde-claro); background: var(--fundo);
+  border: 1px solid var(--linha); border-radius: 6px; padding: 7px 10px; overflow-wrap: anywhere; min-width: 0 }
+.cliques-link { margin: 0; color: var(--texto) }
+.cliques-link .aberto { color: var(--ok) }
+.periodo-cliques { color: var(--apagado); font-size: .86rem }
+.etiqueta.aberto { background: var(--ok-fundo); color: var(--ok) }

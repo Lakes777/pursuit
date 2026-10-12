@@ -25,6 +25,11 @@ type Config struct {
 	TelegramToken string
 	TelegramChat  string
 	TelegramURL   string // vazio = api.telegram.org
+	// Beacon (o encurtador): endereço, chave de integração e para onde os links levam.
+	// Sem endereço e chave, a integração fica desligada.
+	BeaconURL     string
+	BeaconChave   string
+	BeaconDestino string // vazio = o portfólio
 	// ProxiesConfiaveis: de onde o X-Forwarded-For vale (a rede do Caddy, em produção)
 	ProxiesConfiaveis []netip.Prefix
 }
@@ -55,6 +60,9 @@ func Carregar(ler func(string) string) (Config, error) {
 	c.TelegramToken = strings.TrimSpace(ler("PURSUIT_TELEGRAM_TOKEN"))
 	c.TelegramChat = strings.TrimSpace(ler("PURSUIT_TELEGRAM_CHAT"))
 	c.TelegramURL = strings.TrimSpace(ler("PURSUIT_TELEGRAM_URL"))
+	c.BeaconURL = strings.TrimSpace(ler("PURSUIT_BEACON_URL"))
+	c.BeaconChave = strings.TrimSpace(ler("PURSUIT_BEACON_CHAVE"))
+	c.BeaconDestino = strings.TrimSpace(ler("PURSUIT_BEACON_DESTINO"))
 	for _, item := range strings.Split(ler("PURSUIT_PROXY_CONFIAVEL"), ",") {
 		if item = strings.TrimSpace(item); item == "" {
 			continue

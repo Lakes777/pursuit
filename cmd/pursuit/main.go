@@ -26,6 +26,7 @@ import (
 
 	"github.com/Lakes777/pursuit/internal/api"
 	"github.com/Lakes777/pursuit/internal/banco"
+	"github.com/Lakes777/pursuit/internal/beacon"
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/config"
 	"github.com/Lakes777/pursuit/internal/contas"
@@ -106,6 +107,18 @@ func rodar(log *slog.Logger, args []string) error {
 	}
 	servicoDeLembretes := lembretes.NovoServico(pool, enviador)
 
+	// Beacon (links curtos por candidatura): a mesma regra do Telegram. Sem endereço e sem chave,
+	// desligado; com só um dos dois, ou com a chave mal escrita, a API não sobe.
+	var clienteDoBeacon *beacon.Cliente
+	if cfg.BeaconURL == "" && cfg.BeaconChave == "" {
+		log.Warn("links do Beacon desligados (sem PURSUIT_BEACON_URL e PURSUIT_BEACON_CHAVE)")
+	} else {
+		clienteDoBeacon, err = beacon.Novo(cfg.BeaconURL, cfg.BeaconChave, cfg.BeaconDestino)
+		if err != nil {
+			return fmt.Errorf("configuração do Beacon: %w", err)
+		}
+	}
+
 	// Abre a porta antes de dizer "no ar": uma porta ocupada dá erro aqui mesmo
 	porta, err := net.Listen("tcp", cfg.Endereco)
 	if err != nil {
@@ -114,7 +127,7 @@ func rodar(log *slog.Logger, args []string) error {
 	servidor := &http.Server{
 		Handler: api.Novo(api.Dependencias{
 			Banco: pool, Candidaturas: candidaturas.NovoServico(pool), Contas: servicoDeContas,
-			Numeros: numeros.NovoServico(pool), Lembretes: servicoDeLembretes,
+			Numeros: numeros.NovoServico(pool), Lembretes: servicoDeLembretes, Beacon: clienteDoBeacon,
 			Limite: contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Proxies: cfg.ProxiesConfiaveis, Log: log,
 		}),
 		// Sem limites, um cliente lento seguraria uma conexão para sempre (Slowloris)

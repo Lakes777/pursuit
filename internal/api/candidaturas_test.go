@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Lakes777/pursuit/internal/beacon"
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/contas"
 	"github.com/Lakes777/pursuit/internal/lembretes"
@@ -33,7 +34,13 @@ const (
 
 func novoServidor(t *testing.T) *servidorDeTeste {
 	t.Helper()
-	s := novoServidorSemLogin(t, 10)
+	return novoServidorComBeacon(t, nil)
+}
+
+// novoServidorComBeacon: já logado, com o cliente do Beacon dado (nil = integração desligada).
+func novoServidorComBeacon(t *testing.T, clienteDoBeacon *beacon.Cliente) *servidorDeTeste {
+	t.Helper()
+	s := montarServidor(t, 10, clienteDoBeacon)
 	if err := contas.NovoServico(testebanco.Pool(t)).DefinirSenha(context.Background(), nomeDeTeste, senhaDeTeste); err != nil {
 		t.Fatal(err)
 	}
@@ -45,11 +52,16 @@ func novoServidor(t *testing.T) *servidorDeTeste {
 
 func novoServidorSemLogin(t *testing.T, loginPorMinuto int) *servidorDeTeste {
 	t.Helper()
+	return montarServidor(t, loginPorMinuto, nil)
+}
+
+func montarServidor(t *testing.T, loginPorMinuto int, clienteDoBeacon *beacon.Cliente) *servidorDeTeste {
+	t.Helper()
 	pool := testebanco.Pool(t)
 	testebanco.Limpar(t, pool)
 	servidor := httptest.NewServer(Novo(Dependencias{
 		Banco: pool, Candidaturas: candidaturas.NovoServico(pool), Contas: contas.NovoServico(pool),
-		Numeros: numeros.NovoServico(pool), Lembretes: lembretes.NovoServico(pool, nil), Limite: contas.NovoLimite(loginPorMinuto), Log: semLog,
+		Numeros: numeros.NovoServico(pool), Lembretes: lembretes.NovoServico(pool, nil), Limite: contas.NovoLimite(loginPorMinuto), Beacon: clienteDoBeacon, Log: semLog,
 	}))
 	t.Cleanup(servidor.Close)
 	jarra, err := cookiejar.New(nil)

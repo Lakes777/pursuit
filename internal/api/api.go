@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/Lakes777/pursuit/internal/beacon"
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/contas"
 	"github.com/Lakes777/pursuit/internal/lembretes"
@@ -28,7 +29,9 @@ type Dependencias struct {
 	Contas       *contas.Servico
 	Numeros      *numeros.Servico
 	Lembretes    *lembretes.Servico
-	Limite       *contas.Limite
+	// Beacon: o cliente do encurtador (nil = integração desligada)
+	Beacon *beacon.Cliente
+	Limite *contas.Limite
 	// CookieSeguro: o cookie da sessão só vai por HTTPS (desligar só no computador, sem HTTPS)
 	CookieSeguro bool
 	// Proxies: de onde vale o X-Forwarded-For (o Caddy, em produção); vazio = só o IP da conexão
@@ -58,6 +61,11 @@ func Novo(d Dependencias) http.Handler {
 	rotas.HandleFunc("GET /api/numeros", logado(verNumeros(d.Numeros, d.Log)))
 	rotas.HandleFunc("GET /api/lembretes", logado(verLembretes(d.Lembretes, d.Log)))
 	rotas.HandleFunc("GET /api/lembretes/prazos", logado(prazosDosLembretes))
+	b := rotasDoBeacon{cliente: d.Beacon, candidaturas: d.Candidaturas, log: d.Log}
+	rotas.HandleFunc("GET /api/beacon", logado(b.estado))
+	rotas.HandleFunc("GET /api/beacon/cliques", logado(b.cliquesPorLink))
+	rotas.HandleFunc("POST /api/candidaturas/{id}/beacon", logado(b.criar))
+	rotas.HandleFunc("GET /api/candidaturas/{id}/beacon/cliques", logado(b.cliques))
 	// A interface (HTML, CSS, JS) em tudo o que não é /api nem /saude. Um /api desconhecido
 	// continua respondendo 404 em JSON, não a página.
 	rotas.Handle("GET /", web.Handler())

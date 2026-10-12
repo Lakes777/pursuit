@@ -2,6 +2,7 @@
 // encerradas (contratado, recusada, desisti) ficam numa área recolhível embaixo.
 // Para mudar de etapa: arrastar a ficha para outra pasta (mouse) ou o botão "Mover" da ficha
 // (teclado e celular). Os dois abrem a mesma janela, que pede a data e a observação.
+import { cliquesDaCandidatura } from '../beacon-logica.js'
 import { el, icone, trocar } from '../dom.js'
 import { fecharJanelas, abrirMudancaDeEtapa } from '../janelas.js'
 import { nomeDaEtapa } from '../logica.js'
@@ -21,6 +22,7 @@ registrarTela('quadro', {
     let arrastada = null // a candidatura sendo arrastada (o dragover não pode ler o dataTransfer)
     let pedido = 0 // a resposta de uma busca antiga, que chega depois da nova, é ignorada
     let espera = null
+    let cliquesPorLink = {}
 
     const campoBusca = el('input', {
       id: 'busca-quadro', type: 'search', name: 'busca', value: buscaGuardada, autocomplete: 'off',
@@ -65,8 +67,20 @@ registrarTela('quadro', {
       ])
       if (!ctx.atual(params.navegacao) || meu !== pedido) return
       candidaturas = lista
-      desenhar(busca, new Set(paradas.map((p) => p.candidaturaId)))
+      const marcadas = new Set(paradas.map((p) => p.candidaturaId))
+      desenhar(busca, marcadas)
       if (focar) area.querySelector(`.ficha[data-id="${focar}"] .ficha-link`)?.focus()
+      // Os cliques dos links do Beacon chegam depois, sem segurar o quadro (o Beacon pode estar lento
+      // ou fora do ar): ao chegarem, só redesenha se esta ainda for a carga mais recente. Na busca,
+      // os de antes continuam valendo até lá.
+      if (!lista.some((c) => c.beacon)) return
+      ctx.api('GET', '/api/beacon/cliques').then(({ porLink }) => {
+        if (!ctx.atual(params.navegacao) || meu !== pedido) return
+        cliquesPorLink = porLink
+        const comFoco = document.activeElement?.closest('.ficha')?.dataset.id
+        desenhar(busca, marcadas)
+        if (comFoco) area.querySelector(`.ficha[data-id="${comFoco}"] .ficha-link`)?.focus()
+      }).catch(() => {})
     }
 
     function desenhar(busca, paradas) {
@@ -109,11 +123,14 @@ registrarTela('quadro', {
       const mover = el('button', { type: 'button', class: 'botao fantasma mover' },
         icone('seta'), 'Mover', el('span', { class: 'so-leitor' }, ` ${f.empresa} para outra etapa`))
       mover.addEventListener('click', () => mudar(f, null))
+      const cliques = cliquesDaCandidatura(f, cliquesPorLink)
       const elemento = el('article', { class: `ficha${f.parada ? ' parada' : ''}`, draggable: 'true', dataset: { id: f.id } },
         el('h3', { class: 'ficha-empresa' }, link),
         el('p', { class: 'ficha-vaga' }, f.vaga),
         el('p', { class: 'ficha-dias' }, icone('relogio'), textoDiasNaEtapa(f.dias),
-          f.parada ? el('span', { class: 'etiqueta parada' }, 'Parada') : null),
+          f.parada ? el('span', { class: 'etiqueta parada' }, 'Parada') : null,
+          cliques ? el('span', { class: 'etiqueta aberto', title: `Link do portfólio aberto ${cliques} ${cliques === 1 ? 'vez' : 'vezes'}` },
+            'Aberto', el('span', { class: 'so-leitor' }, ` ${cliques} ${cliques === 1 ? 'vez' : 'vezes'}`)) : null),
         mover)
       elemento.addEventListener('dragstart', (evento) => {
         arrastada = f

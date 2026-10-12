@@ -94,3 +94,19 @@ func TestVariaveisTemPrioridade(t *testing.T) {
 		t.Errorf("c = %+v", c)
 	}
 }
+
+func TestBeacon(t *testing.T) {
+	ambiente := map[string]string{
+		"PURSUIT_BEACON_URL":     " https://beacon.exemplo ",
+		"PURSUIT_BEACON_CHAVE":   " chave ",
+		"PURSUIT_BEACON_DESTINO": "https://lakes777.github.io/#projetos",
+	}
+	c, err := Carregar(func(nome string) string { return ambiente[nome] })
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Só lê e tira os espaços; quem confere o formato é o beacon.Novo, ao subir
+	if c.BeaconURL != "https://beacon.exemplo" || c.BeaconChave != "chave" || c.BeaconDestino != "https://lakes777.github.io/#projetos" {
+		t.Errorf("c = %+v", c)
+	}
+}

@@ -23,7 +23,7 @@ func (q *Queries) ApagarCandidatura(ctx context.Context, id int64) (int64, error
 }
 
 const buscarCandidatura = `-- name: BuscarCandidatura :one
-select id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em from candidatura where id = $1
+select id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em, beacon_codigo, beacon_url from candidatura where id = $1
 `
 
 func (q *Queries) BuscarCandidatura(ctx context.Context, id int64) (Candidatura, error) {
@@ -41,6 +41,8 @@ func (q *Queries) BuscarCandidatura(ctx context.Context, id int64) (Candidatura,
 		&i.Anotacoes,
 		&i.Etapa,
 		&i.AtualizadaEm,
+		&i.BeaconCodigo,
+		&i.BeaconUrl,
 	)
 	return i, err
 }
@@ -48,7 +50,7 @@ func (q *Queries) BuscarCandidatura(ctx context.Context, id int64) (Candidatura,
 const criarCandidatura = `-- name: CriarCandidatura :one
 insert into candidatura (empresa, vaga, link, fonte, modalidade, salario, anotacoes, etapa)
 values ($1, $2, $3, $4, $5, $6, $7, $8)
-returning id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em
+returning id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em, beacon_codigo, beacon_url
 `
 
 type CriarCandidaturaParams struct {
@@ -86,6 +88,43 @@ func (q *Queries) CriarCandidatura(ctx context.Context, arg CriarCandidaturaPara
 		&i.Anotacoes,
 		&i.Etapa,
 		&i.AtualizadaEm,
+		&i.BeaconCodigo,
+		&i.BeaconUrl,
+	)
+	return i, err
+}
+
+const definirBeacon = `-- name: DefinirBeacon :one
+update candidatura set beacon_codigo = $1, beacon_url = $2
+where id = $3 and beacon_codigo is null
+returning id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em, beacon_codigo, beacon_url
+`
+
+type DefinirBeaconParams struct {
+	BeaconCodigo *string
+	BeaconUrl    *string
+	ID           int64
+}
+
+// Só se ela ainda não tem link: dois pedidos ao mesmo tempo não trocam um link que já foi para
+// um currículo. Sem linha de volta = já tinha (ou a candidatura foi apagada no meio).
+func (q *Queries) DefinirBeacon(ctx context.Context, arg DefinirBeaconParams) (Candidatura, error) {
+	row := q.db.QueryRow(ctx, definirBeacon, arg.BeaconCodigo, arg.BeaconUrl, arg.ID)
+	var i Candidatura
+	err := row.Scan(
+		&i.ID,
+		&i.Empresa,
+		&i.Vaga,
+		&i.Link,
+		&i.CriadaEm,
+		&i.Fonte,
+		&i.Modalidade,
+		&i.Salario,
+		&i.Anotacoes,
+		&i.Etapa,
+		&i.AtualizadaEm,
+		&i.BeaconCodigo,
+		&i.BeaconUrl,
 	)
 	return i, err
 }
@@ -95,7 +134,7 @@ update candidatura
 set empresa = $1, vaga = $2, link = $3, fonte = $4, modalidade = $5,
     salario = $6, anotacoes = $7, atualizada_em = now()
 where id = $8
-returning id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em
+returning id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em, beacon_codigo, beacon_url
 `
 
 type EditarCandidaturaParams struct {
@@ -133,6 +172,8 @@ func (q *Queries) EditarCandidatura(ctx context.Context, arg EditarCandidaturaPa
 		&i.Anotacoes,
 		&i.Etapa,
 		&i.AtualizadaEm,
+		&i.BeaconCodigo,
+		&i.BeaconUrl,
 	)
 	return i, err
 }
@@ -169,7 +210,7 @@ func (q *Queries) HistoricoDaCandidatura(ctx context.Context, candidaturaID int6
 }
 
 const listarCandidaturas = `-- name: ListarCandidaturas :many
-select candidatura.id, candidatura.empresa, candidatura.vaga, candidatura.link, candidatura.criada_em, candidatura.fonte, candidatura.modalidade, candidatura.salario, candidatura.anotacoes, candidatura.etapa, candidatura.atualizada_em,
+select candidatura.id, candidatura.empresa, candidatura.vaga, candidatura.link, candidatura.criada_em, candidatura.fonte, candidatura.modalidade, candidatura.salario, candidatura.anotacoes, candidatura.etapa, candidatura.atualizada_em, candidatura.beacon_codigo, candidatura.beacon_url,
        coalesce(ultima.em, candidatura.criada_em)::timestamptz as etapa_desde
 from candidatura
 cross join lateral (
@@ -217,6 +258,8 @@ func (q *Queries) ListarCandidaturas(ctx context.Context, arg ListarCandidaturas
 			&i.Candidatura.Anotacoes,
 			&i.Candidatura.Etapa,
 			&i.Candidatura.AtualizadaEm,
+			&i.Candidatura.BeaconCodigo,
+			&i.Candidatura.BeaconUrl,
 			&i.EtapaDesde,
 		); err != nil {
 			return nil, err
@@ -232,7 +275,7 @@ func (q *Queries) ListarCandidaturas(ctx context.Context, arg ListarCandidaturas
 const mudarEtapa = `-- name: MudarEtapa :one
 update candidatura set etapa = $1, atualizada_em = now()
 where id = $2
-returning id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em
+returning id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em, beacon_codigo, beacon_url
 `
 
 type MudarEtapaParams struct {
@@ -255,6 +298,8 @@ func (q *Queries) MudarEtapa(ctx context.Context, arg MudarEtapaParams) (Candida
 		&i.Anotacoes,
 		&i.Etapa,
 		&i.AtualizadaEm,
+		&i.BeaconCodigo,
+		&i.BeaconUrl,
 	)
 	return i, err
 }
@@ -294,7 +339,7 @@ func (q *Queries) RegistrarEtapa(ctx context.Context, arg RegistrarEtapaParams) 
 }
 
 const travarCandidatura = `-- name: TravarCandidatura :one
-select id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em from candidatura where id = $1 for update
+select id, empresa, vaga, link, criada_em, fonte, modalidade, salario, anotacoes, etapa, atualizada_em, beacon_codigo, beacon_url from candidatura where id = $1 for update
 `
 
 // Para mudar a etapa: trava a linha até o fim da transação, e duas mudanças ao mesmo
@@ -314,6 +359,8 @@ func (q *Queries) TravarCandidatura(ctx context.Context, id int64) (Candidatura,
 		&i.Anotacoes,
 		&i.Etapa,
 		&i.AtualizadaEm,
+		&i.BeaconCodigo,
+		&i.BeaconUrl,
 	)
 	return i, err
 }

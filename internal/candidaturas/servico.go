@@ -30,6 +30,8 @@ type Candidatura struct {
 	EtapaDesde   time.Time `json:"etapaDesde"`
 	CriadaEm     time.Time `json:"criadaEm"`
 	AtualizadaEm time.Time `json:"atualizadaEm"`
+	// Beacon: o link curto da candidatura (nil = ainda não tem)
+	Beacon *LinkDoBeacon `json:"beacon"`
 }
 
 // Mudanca é uma linha do histórico de etapas. De é nil na primeira.
@@ -286,6 +288,7 @@ func converter(linha bd.Candidatura, etapaDesde time.Time) Candidatura {
 		EtapaDesde:   etapaDesde,
 		CriadaEm:     linha.CriadaEm,
 		AtualizadaEm: linha.AtualizadaEm,
+		Beacon:       linkDoBeacon(linha),
 	}
 }
 

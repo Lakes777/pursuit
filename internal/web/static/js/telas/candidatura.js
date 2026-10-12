@@ -1,7 +1,8 @@
-// A ficha de uma candidatura: os dados, a etapa atual, o histórico como linha do tempo e as
-// ações (mudar etapa, editar, apagar).
+// A ficha de uma candidatura: os dados, a etapa atual, o link do portfólio (Beacon), o histórico
+// como linha do tempo e as ações (mudar etapa, editar, apagar).
 import { ErroDaAPI } from '../api.js'
 import { el, icone, trocar } from '../dom.js'
+import { formatarDia, textoDosCliques, ultimoDiaComClique } from '../beacon-logica.js'
 import { abrirMudancaDeEtapa, confirmar, fecharJanelas } from '../janelas.js'
 import { formatarData, formatarDataHora, nomeDaEtapa } from '../logica.js'
 import { diasNaEtapa, linkSeguro, nomeDaModalidade, textoDiasNaEtapa, textoDoPasso } from '../quadro-logica.js'
@@ -22,9 +23,14 @@ registrarTela('candidatura', {
   titulo: 'Candidatura',
   async montar(container, params, ctx) {
     let c
+    // Sem o estado do Beacon, a ficha abre igual, só sem a parte do link
+    let beacon = { ligado: false }
     try {
       if (!/^\d+$/.test(params.id ?? '')) throw new ErroDaAPI(404)
-      c = await ctx.api('GET', `/api/candidaturas/${params.id}`)
+      ;[c, beacon] = await Promise.all([
+        ctx.api('GET', `/api/candidaturas/${params.id}`),
+        ctx.api('GET', '/api/beacon').catch(() => beacon),
+      ])
     } catch (erro) {
       if (!(erro instanceof ErroDaAPI) || erro.status !== 404) throw erro
       if (ctx.atual(params.navegacao)) trocar(container, naoEncontrada())
@@ -87,6 +93,7 @@ registrarTela('candidatura', {
             el('p', { class: `nome-etapa${etapa?.final ? ' final' : ''}` }, nomeDe(c.etapa)),
             el('p', { class: 'desde-etapa' }, icone('relogio'),
               `${textoDiasNaEtapa(diasNaEtapa(c))} (desde ${formatarDataHora(c.etapaDesde ?? c.atualizadaEm)})`)),
+          linkDoPortfolio(c),
           el('section', { class: 'pasta dados-candidatura', 'aria-labelledby': 'dados-titulo' },
             el('h2', { class: 'orelha', id: 'dados-titulo' }, 'Dados'),
             el('dl', { class: 'lista-dados' },
@@ -102,6 +109,66 @@ registrarTela('candidatura', {
                 el('p', { class: 'passo' }, textoDoPasso(m, nomeDe)),
                 el('time', { datetime: m.em }, formatarDataHora(m.em)),
                 m.observacao ? el('p', { class: 'observacao' }, m.observacao) : null))))))
+    }
+
+    /**
+     * O link curto desta candidatura: sem link, o botão para criar; com link, o endereço para copiar
+     * e quantas vezes foi aberto. Some de vez com o Beacon desligado e sem link guardado.
+     */
+    function linkDoPortfolio(candidatura) {
+      const c = candidatura
+      if (!c.beacon && !beacon.ligado) return null
+      const secao = el('section', { class: 'pasta link-portfolio', 'aria-labelledby': 'link-portfolio-titulo' },
+        el('h2', { class: 'orelha', id: 'link-portfolio-titulo' }, 'Link do portfólio'))
+      if (!c.beacon) {
+        const criar = el('button', { type: 'button', class: 'botao' }, icone('link'), 'Criar link')
+        criar.addEventListener('click', async () => {
+          criar.disabled = true
+          try {
+            const atualizada = await ctx.api('POST', `/api/candidaturas/${c.id}/beacon`)
+            if (!ctx.atual(params.navegacao)) return
+            ctx.avisar('Link criado. Use ele no currículo desta vaga.')
+            secao.replaceWith(linkDoPortfolio(atualizada))
+            container.querySelector('.link-portfolio .copiar')?.focus()
+          } catch (erro) {
+            if (erro.status !== 401 && ctx.atual(params.navegacao)) ctx.avisar(`Não foi possível criar o link: ${erro.message}.`, 'erro')
+            criar.disabled = false
+          }
+        })
+        secao.append(
+          el('p', { class: 'explica-link' },
+            'Um endereço curto só desta vaga, que leva ao seu portfólio. Ponha no currículo que mandar para ela: quando alguém abrir, aparece aqui.'),
+          criar)
+        return secao
+      }
+      const copiar = el('button', { type: 'button', class: 'botao copiar' }, 'Copiar')
+      copiar.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(c.beacon.url)
+          ctx.avisar('Link copiado.')
+        } catch {
+          // Sem permissão da área de transferência: seleciona o texto para copiar à mão
+          getSelection()?.selectAllChildren(endereco)
+        }
+      })
+      const endereco = el('code', { class: 'endereco-link' }, c.beacon.url)
+      const cliques = el('p', { class: 'cliques-link', 'aria-live': 'polite' }, 'Contando os cliques...')
+      secao.append(el('div', { class: 'linha-link' }, endereco, copiar), cliques)
+      if (!beacon.ligado) {
+        // O link guardado continua valendo; só a contagem, que passa pelo Beacon, está desligada
+        trocar(cliques, el('span', { class: 'sem-dado' }, 'A contagem de cliques está desligada (sem o Beacon configurado).'))
+        return secao
+      }
+      ctx.api('GET', `/api/candidaturas/${c.id}/beacon/cliques`).then((n) => {
+        if (!ctx.atual(params.navegacao)) return
+        const ultimo = ultimoDiaComClique(n.porDia)
+        trocar(cliques, el('strong', { class: n.total ? 'aberto' : '' }, textoDosCliques(n.total)),
+          ultimo ? ` · o último em ${formatarDia(ultimo)}` : null,
+          el('span', { class: 'periodo-cliques' }, ` (últimos ${beacon.dias ?? 365} dias, sem contar robôs)`))
+      }).catch((erro) => {
+        if (erro.status !== 401 && ctx.atual(params.navegacao)) trocar(cliques, el('span', { class: 'sem-dado' }, `Não foi possível contar os cliques: ${erro.message}.`))
+      })
+      return secao
     }
 
     return fecharJanelas

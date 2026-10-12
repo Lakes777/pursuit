@@ -55,3 +55,10 @@ select * from etapa_historico where candidatura_id = @candidatura_id order by em
 -- Sem histórico (linha inserida à mão), o ano 1: o time.Time do Go não representa '-infinity'.
 select coalesce(max(em), '0001-01-01T00:00:00Z'::timestamptz)::timestamptz as em
 from etapa_historico where candidatura_id = @candidatura_id;
+
+-- name: DefinirBeacon :one
+-- Só se ela ainda não tem link: dois pedidos ao mesmo tempo não trocam um link que já foi para
+-- um currículo. Sem linha de volta = já tinha (ou a candidatura foi apagada no meio).
+update candidatura set beacon_codigo = @beacon_codigo, beacon_url = @beacon_url
+where id = @id and beacon_codigo is null
+returning *;

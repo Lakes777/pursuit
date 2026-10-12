@@ -7,8 +7,7 @@
 Uma API para acompanhar as vagas em que me candidatei: empresa, etapa, datas e anotações de cada
 entrevista. O objetivo é mostrar o funil (quantas candidaturas passam de cada etapa), avisar pelo
 Telegram quando uma candidatura fica parada e, com o [Beacon](https://github.com/Lakes777/beacon),
-dizer se a empresa abriu o link do meu portfólio. **Em construção:** as fases abaixo mostram o que
-já está pronto.
+dizer se a empresa abriu o link do meu portfólio.
 
 É o meu primeiro projeto em **Go**.
 
@@ -23,7 +22,7 @@ já está pronto.
 - [x] **3. Login:** conta única com senha (argon2id), sessão por cookie guardada no banco, limite de tentativas; toda rota de `/api` pede login
 - [x] **4. Números:** funil por etapa, tempo até a resposta, taxa por fonte (LinkedIn, Gupy...), envios por semana
 - [x] **5. Lembretes:** uma goroutine em segundo plano avisa pelo Telegram as candidaturas paradas há dias (uma mensagem por dia, no máximo)
-- [ ] **6. Beacon:** um link curto por candidatura, com os cliques
+- [x] **6. Beacon:** um link curto por candidatura, que leva ao portfólio, com os cliques na ficha e "Aberto" no quadro
 - [x] **7. Interface:** página servida pelo próprio binário, com identidade visual própria ("Fichário"): quadro por etapa com arrastar e soltar, ficha com o histórico, formulário, números com gráficos e lembretes
 - [x] **8. Publicação:** imagem Docker só com o binário (~25 MB), numa VM da Oracle, com HTTPS, backup diário e vigiado pelo [Vigil](https://github.com/Lakes777/vigil)
 
@@ -81,6 +80,9 @@ Configuração por variáveis de ambiente:
 | `PURSUIT_TELEGRAM_TOKEN` | (vazio) | Token do bot (o do Sidekick). Sem ele, os lembretes ficam desligados |
 | `PURSUIT_TELEGRAM_CHAT` | (vazio) | O meu chat com o bot. Os dois vazios desligam os lembretes; só um, ou um token mal escrito, impede a API de subir |
 | `PURSUIT_TELEGRAM_URL` | (vazio) | Endereço da API do Telegram; vazio = `api.telegram.org` (só os testes trocam) |
+| `PURSUIT_BEACON_URL` | (vazio) | Endereço do [Beacon](https://github.com/Lakes777/beacon). Sem ele e sem a chave, os links ficam desligados |
+| `PURSUIT_BEACON_CHAVE` | (vazio) | A chave de integração do Beacon (`Integracao__Chave` lá). Os dois vazios desligam; só um, ou uma chave curta, impede a API de subir |
+| `PURSUIT_BEACON_DESTINO` | `https://lakes777.github.io` | Para onde os links levam |
 
 ## Rotas
 
@@ -100,6 +102,10 @@ Configuração por variáveis de ambiente:
 | `GET` | `/api/numeros` | Funil, tempo de resposta, fontes, etapas atuais e envios por semana (abaixo) |
 | `GET` | `/api/lembretes` | O que seria lembrado agora (as candidaturas paradas além do prazo) |
 | `GET` | `/api/lembretes/prazos` | Os prazos por etapa (`etapa`, `nome`, `dias`), na ordem do processo; a tela lê daqui |
+| `GET` | `/api/beacon` | Se os links do Beacon estão ligados (`ligado`) e o período das contas (`dias`) |
+| `POST` | `/api/candidaturas/{id}/beacon` | Cria o link curto da candidatura (ou devolve o que ela já tem); `503` com o Beacon desligado, `502` se ele não responder |
+| `GET` | `/api/candidaturas/{id}/beacon/cliques` | Quantas vezes o link foi aberto, por dia (`total`, `porDia`), sem robôs |
+| `GET` | `/api/beacon/cliques` | Os cliques de todos os links de uma vez (`porLink`): o quadro marca as abertas |
 
 Todas as rotas de `/api`, menos entrar e sair, respondem `401` sem login:
 
@@ -171,6 +177,30 @@ Pursuit: 2 candidaturas paradas.
   token, então só o motivo é repassado. A mensagem vai sem formatação: o que eu digitei numa
   candidatura não vira HTML.
 - Os prazos ficam num mapa ao lado das etapas; um teste falha se uma etapa em andamento ficar sem prazo.
+
+### Link do portfólio (Beacon)
+
+Na ficha de cada candidatura, **Criar link** pede ao [Beacon](https://github.com/Lakes777/beacon) (o
+meu encurtador) um endereço curto que leva ao portfólio. Esse endereço vai no currículo mandado para
+aquela vaga: quando alguém abre, a ficha mostra "Aberto 2 vezes · o último em 12/10/2026", e a ficha
+no quadro ganha a etiqueta **Aberto**.
+
+- **A chave fica no servidor:** o navegador só fala com o Pursuit, que fala com o Beacon com a chave de
+  integração (`Authorization: Bearer`). No Beacon, essa chave só lê e cria links: se vazar, não apaga nada.
+- **Código aleatório:** o Beacon sorteia 7 caracteres. Um código com o nome da empresa diria a qualquer
+  um que visse o link para onde eu me candidatei.
+- **Um link por candidatura, que não muda:** ele pode já estar num currículo enviado. Pedir de novo
+  devolve o mesmo, sem chamar o Beacon.
+- **O Beacon fora da transação,** como o Telegram: o pedido a ele não segura a linha travada. Em troca,
+  dois cliques ao mesmo tempo podem criar dois links lá; o banco guarda só o primeiro
+  (`update ... where beacon_codigo is null`), e todos os pedidos devolvem esse. O outro sobra no Beacon,
+  sem uso (a chave não apaga, de propósito). Um teste dispara 10 pedidos juntos.
+- **Robôs fora:** a prévia do LinkedIn ou do WhatsApp "abre" o link sozinha; o Beacon conta à parte, e
+  aqui só entram pessoas.
+- **Sem o Beacon, nada quebra:** desligado, a ficha não mostra a parte do link; fora do ar, a ficha mostra
+  o link e avisa que não deu para contar, e o quadro só não marca as abertas.
+- Apagar a candidatura não apaga o link no Beacon: ele pode estar num currículo, e quem clicar continua
+  chegando ao portfólio.
 
 Erros no formato da RFC 9457 (`application/problem+json`), com o problema de cada campo:
 
@@ -273,6 +303,7 @@ internal/contas/      senha (argon2id), sessões, limite de tentativas
 internal/numeros/     funil, tempo de resposta, fontes, envios por semana
 internal/lembretes/   candidaturas paradas, mensagem do dia, goroutine
 internal/telegram/    cliente da API de bots (sem vazar o token)
+internal/beacon/      cliente do Beacon: cria o link e lê os cliques (a chave só no cabeçalho)
 internal/web/         a interface: static/ (HTML, CSS, JS, fontes) e o servidor com CSP e ETag
 internal/web/testes/  testes do JavaScript (node --test)
 internal/api/         rotas HTTP, login (cookie), erros (RFC 9457), middlewares
