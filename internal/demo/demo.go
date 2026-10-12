@@ -99,9 +99,10 @@ func quando(p Passo, agora time.Time) time.Time {
 	return time.Date(hoje.Year(), hoje.Month(), hoje.Day()-p.DiasAtras, p.Hora, p.Minuto, 0, 0, brasilia)
 }
 
-// DominioDoBeacon: os links de exemplo apontam para a demonstração do Beacon. São códigos
-// inventados: abrir um deles dá "não encontrado" lá, e nenhum link real aparece aqui.
-const DominioDoBeacon = "https://159-112-189-95.sslip.io/r/"
+// DominioDoBeacon: os links de exemplo apontam para a demonstração do Beacon, que semeia estes mesmos
+// códigos com alguns cliques (a ficha mostra "Aberto N vezes"). Nenhum link real aparece aqui.
+// Os códigos seguem as regras do Beacon: 7 caracteres, minúsculas, sem l, o, 0 e 1.
+const DominioDoBeacon = "https://demo-beacon.159-112-189-95.sslip.io/r/"
 
 func urlDoBeacon(codigo string) *string {
 	if codigo == "" {
@@ -140,7 +141,7 @@ type Passo struct {
 var Exemplos = []Exemplo{
 	{
 		Empresa: "Nubank", Vaga: "Estágio em Desenvolvimento Back-end (Go)", Fonte: "LinkedIn",
-		Modalidade: "remoto", Salario: "R$ 2.400", Beacon: "k7Qm2xZ",
+		Modalidade: "remoto", Salario: "R$ 2.400", Beacon: "k7qm2xz",
 		Anotacoes: "Stack: Go, Kafka, PostgreSQL. Pediram um projeto pessoal em Go: mandei o Pursuit.",
 		Passos: []Passo{
 			{candidaturas.Enviada, 21, 10, 15, "Candidatura pelo LinkedIn, com o currículo e o link do portfólio."},
@@ -159,7 +160,7 @@ var Exemplos = []Exemplo{
 	},
 	{
 		Empresa: "iFood", Vaga: "Estágio Back-end Java", Link: "https://carreiras.ifood.com.br", Fonte: "Site da empresa",
-		Modalidade: "remoto", Salario: "R$ 2.500 + VR", Beacon: "Rt4pW9a",
+		Modalidade: "remoto", Salario: "R$ 2.500 + VR", Beacon: "rt4pw9a",
 		Anotacoes: "Início previsto em novembro. Perguntar sobre a efetivação.",
 		Passos: []Passo{
 			{candidaturas.Interesse, 32, 20, 10, ""},
@@ -194,7 +195,7 @@ var Exemplos = []Exemplo{
 	},
 	{
 		Empresa: "Totvs", Vaga: "Estágio Desenvolvedor Back-end", Fonte: "Indicação", Modalidade: "hibrido",
-		Beacon: "b3NvX8e", Anotacoes: "Indicação de um colega da faculdade, que está no time de RH tech.",
+		Beacon: "b3nvx8e", Anotacoes: "Indicação de um colega da faculdade, que está no time de RH tech.",
 		Passos: []Passo{
 			{candidaturas.Enviada, 9, 11, 0, "Currículo mandado pelo colega que indicou."},
 			{candidaturas.Triagem, 7, 16, 30, ""},
