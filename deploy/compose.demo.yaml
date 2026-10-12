@@ -1,0 +1,26 @@
+# A demonstração do Pursuit (PURSUIT_DEMO=true): a mesma imagem, outro banco (pursuit_demo), sem
+# Telegram, apontando para a demonstração do Beacon. Fica em ~/pursuit-demo na VM, ao lado da real,
+# e entra na rede do Beacon com outro nome (o Caddy chega aqui por pursuit-demo:8095).
+name: pursuit-demo
+
+services:
+  api:
+    image: pursuit:latest
+    restart: unless-stopped
+    # PURSUIT_DEMO, PURSUIT_BANCO_URL, PURSUIT_PROXY_CONFIAVEL e PURSUIT_BEACON_URL/_CHAVE (os da demo
+    # do Beacon) ficam no .env de ~/pursuit-demo, criado pelo preparar-demo.sh
+    env_file: .env
+    mem_limit: 64m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      beacon:
+        aliases: [pursuit-demo]
+
+networks:
+  beacon:
+    external: true
+    name: beacon_interna

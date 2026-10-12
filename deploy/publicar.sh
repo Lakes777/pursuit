@@ -6,6 +6,7 @@ set -euo pipefail
 VM="${VM:-ubuntu@159.112.189.95}"
 CHAVE_SSH="${CHAVE_SSH:-$HOME/.ssh/oracle_bot}"
 DOMINIO="${DOMINIO:-pursuit.159-112-189-95.sslip.io}"
+DOMINIO_DEMO="${DOMINIO_DEMO:-demo-pursuit.159-112-189-95.sslip.io}"
 cd "$(dirname "$0")/.."
 
 # Só publica o que está no git: a imagem leva o commit, e dá para saber o que está no ar
@@ -32,6 +33,14 @@ echo "Reiniciando..."
 ssh -i "$CHAVE_SSH" "$VM" "cd pursuit && docker compose up -d --remove-orphans && docker image prune -f >/dev/null \
 	&& cd ../beacon && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile"
 
+# A demonstração (se foi preparada com o preparar-demo.sh) usa a mesma imagem: reinicia junto
+if ssh -i "$CHAVE_SSH" "$VM" "test -f pursuit-demo/.env"; then
+	echo "Reiniciando a demonstração..."
+	scp -q -i "$CHAVE_SSH" deploy/compose.demo.yaml "$VM:pursuit-demo/compose.yaml"
+	sed "s/DOMINIO_DEMO/$DOMINIO_DEMO/" deploy/pursuit-demo.caddy | ssh -i "$CHAVE_SSH" "$VM" "cat > beacon/sites/pursuit-demo.caddy"
+	ssh -i "$CHAVE_SSH" "$VM" "cd pursuit-demo && docker compose up -d --remove-orphans \
+		&& cd ../beacon && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile"
+fi
 echo "Conferindo a saúde..."
 for _ in $(seq 1 20); do
 	if ssh -i "$CHAVE_SSH" "$VM" "cd pursuit && docker compose exec -T api /pursuit saude" 2>/dev/null; then

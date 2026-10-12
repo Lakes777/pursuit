@@ -1,0 +1,9 @@
+# Site da demonstração do Pursuit no Caddy do Beacon (copiado para ~/beacon/sites/ pelo publicar.sh).
+DOMINIO_DEMO {
+	encode gzip
+	reverse_proxy pursuit-demo:8095
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}

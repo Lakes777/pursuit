@@ -242,11 +242,12 @@ entrar sem senha e mexer à vontade em dados de exemplo.
 - **Proteção do banco real:** `semear-demo` sem `PURSUIT_DEMO=true` recusa (saída 1) antes mesmo de
   conectar ao banco, porque ele começa apagando tudo.
 - **Primeira partida:** com o modo ligado e o banco sem candidaturas, a API semeia sozinha ao subir.
-- **De hora em hora:** um cron na VM repõe os dados (o `-T` porque o cron não tem terminal):
-
-  ```
-  0 * * * * cd ~/pursuit-demo && docker compose exec -T api /pursuit semear-demo >> ~/pursuit-demo/semear.log 2>&1
-  ```
+- **Na VM:** em `~/pursuit-demo`, ao lado da real (`deploy/compose.demo.yaml`, banco `pursuit_demo` no
+  Postgres do Beacon, site `demo-pursuit.159-112-189-95.sslip.io`). `deploy/preparar-demo.sh` cria o banco e o
+  `.env` uma vez; o `publicar.sh` reinicia a demo junto com a real.
+- **De hora em hora,** junto com a demo do Beacon (primeiro a dele), pelo `~/repor-demos.sh` no cron da VM
+  (`0 * * * * ~/repor-demos.sh >> ~/repor-demos.log 2>&1`), que roda
+  `cd ~/pursuit-demo && docker compose exec -T api /pursuit semear-demo` (o `-T` porque o cron não tem terminal).
 
 - **Telegram desligado na demonstração,** mesmo com token: o visitante não pode fazer o bot mandar
   mensagens para mim. A tela de lembretes continua mostrando o que seria lembrado.
