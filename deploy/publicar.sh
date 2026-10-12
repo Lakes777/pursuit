@@ -3,9 +3,9 @@
 # A VM não precisa do código nem do Go, só do Docker. Uso: deploy/publicar.sh
 set -euo pipefail
 
-VM="${VM:-ubuntu@147.15.40.173}"
+VM="${VM:-ubuntu@159.112.189.95}"
 CHAVE_SSH="${CHAVE_SSH:-$HOME/.ssh/oracle_bot}"
-DOMINIO="${DOMINIO:-pursuit.147-15-40-173.sslip.io}"
+DOMINIO="${DOMINIO:-pursuit.159-112-189-95.sslip.io}"
 cd "$(dirname "$0")/.."
 
 # Só publica o que está no git: a imagem leva o commit, e dá para saber o que está no ar
@@ -20,17 +20,17 @@ if ! ssh -i "$CHAVE_SSH" "$VM" "test -f pursuit/.env"; then
 	exit 1
 fi
 
-echo "Montando a imagem ($commit)..."
-docker build -q --platform linux/amd64 --build-arg COMMIT="$commit" -t pursuit:latest -t "pursuit:$commit" .
+echo "Montando a imagem ARM ($commit)..."
+docker buildx build -q --load --platform linux/arm64 --build-arg COMMIT="$commit" -t pursuit:latest -t "pursuit:$commit" .
 
 echo "Enviando para a VM (comprimida)..."
 docker save pursuit:latest | gzip | ssh -i "$CHAVE_SSH" "$VM" "gunzip | docker load -q"
 scp -q -i "$CHAVE_SSH" deploy/compose.yaml deploy/backup.sh "$VM:pursuit/"
-sed "s/DOMINIO_PURSUIT/$DOMINIO/" deploy/pursuit.caddy | ssh -i "$CHAVE_SSH" "$VM" "cat > vigil/sites/pursuit.caddy"
+sed "s/DOMINIO_PURSUIT/$DOMINIO/" deploy/pursuit.caddy | ssh -i "$CHAVE_SSH" "$VM" "cat > beacon/sites/pursuit.caddy"
 
 echo "Reiniciando..."
 ssh -i "$CHAVE_SSH" "$VM" "cd pursuit && docker compose up -d --remove-orphans && docker image prune -f >/dev/null \
-	&& cd ../vigil && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile"
+	&& cd ../beacon && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile"
 
 echo "Conferindo a saúde..."
 for _ in $(seq 1 20); do

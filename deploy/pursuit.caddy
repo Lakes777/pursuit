@@ -1,4 +1,4 @@
-# Site do Pursuit no Caddy do Vigil (copiado para ~/vigil/sites/ pelo publicar.sh). O Caddy pega
+# Site do Pursuit no Caddy do Beacon (copiado para ~/beacon/sites/ pelo publicar.sh). O Caddy pega
 # o certificado HTTPS sozinho. DOMINIO_PURSUIT é trocado pelo endereço na publicação.
 DOMINIO_PURSUIT {
 	encode gzip

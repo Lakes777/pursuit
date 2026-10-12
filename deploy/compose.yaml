@@ -1,7 +1,6 @@
-# Produção na VM da Oracle (a mesma do Sidekick e do Vigil, 1 GB de memória para tudo).
-# O Pursuit usa o Postgres do Vigil (com banco e usuário próprios) e o Caddy dele na frente:
-# por isso entra na rede do Vigil, em vez de subir outro Postgres (que custaria ~100 MB).
-# Quando a VM ARM sair, o plano é mudar para lá (veja "Publicação" no README).
+# Produção na VM ARM da Oracle, a mesma do Beacon. O Pursuit usa o Postgres do Beacon (com banco e
+# usuário próprios) e o Caddy dele na frente: por isso entra na rede interna do Beacon, em vez de
+# subir outro Postgres e outro Caddy.
 name: pursuit
 
 services:
@@ -9,8 +8,7 @@ services:
     image: pursuit:latest
     restart: unless-stopped
     # PURSUIT_BANCO_URL, PURSUIT_TELEGRAM_TOKEN, PURSUIT_TELEGRAM_CHAT e PURSUIT_PROXY_CONFIAVEL
-    # ficam no .env da VM (criado pelo preparar-vm.sh); PURSUIT_BEACON_URL e _CHAVE entram à mão
-    # nele (a chave é a INTEGRACAO_CHAVE do .env do Beacon). Nenhum deles sai de lá
+    # e PURSUIT_BEACON_URL/_CHAVE ficam no .env da VM (criado pelo preparar-vm.sh) e nunca saem de lá
     env_file: .env
     mem_limit: 64m
     logging:
@@ -19,11 +17,11 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      vigil:
-        # O nome que o Caddy do Vigil usa para chegar aqui (reverse_proxy pursuit:8095)
+      beacon:
+        # O nome que o Caddy do Beacon usa para chegar aqui (reverse_proxy pursuit:8095)
         aliases: [pursuit]
 
 networks:
-  vigil:
+  beacon:
     external: true
-    name: vigil_default
+    name: beacon_interna

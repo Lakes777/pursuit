@@ -11,7 +11,7 @@ dizer se a empresa abriu o link do meu portfólio.
 
 É o meu primeiro projeto em **Go**.
 
-**No ar:** https://pursuit.147-15-40-173.sslip.io (uso pessoal, com login)
+**No ar:** https://pursuit.159-112-189-95.sslip.io (uso pessoal, com login)
 
 ![Quadro do Pursuit: uma pasta por etapa, com as fichas das candidaturas; as paradas em âmbar](docs/quadro.png)
 
@@ -264,31 +264,33 @@ candidatura que não existe, `409` para mudar para a etapa em que ela já está,
 
 ## Publicação
 
-Roda numa VM grátis da Oracle Cloud (x86, **1 GB de memória para tudo**), a mesma do
-[Sidekick](https://github.com/Lakes777/sidekick) e do [Vigil](https://github.com/Lakes777/vigil).
-Como a memória é curta, o Pursuit **não sobe outro Postgres nem outro Caddy**: usa os do Vigil.
+Roda numa VM ARM grátis da Oracle Cloud (1 núcleo Ampere, 6 GB), a mesma do
+[Beacon](https://github.com/Lakes777/beacon). O Pursuit **não sobe outro Postgres nem outro Caddy**: usa
+os do Beacon, com banco e usuário próprios. Até 12/10/2026 rodava na VM x86 de 1 GB do
+[Sidekick](https://github.com/Lakes777/sidekick) e do [Vigil](https://github.com/Lakes777/vigil), usando os dele;
+o endereço antigo (`pursuit.147-15-40-173.sslip.io`) redireciona para o novo.
 
 | Peça | Como |
 |---|---|
-| Imagem | Duas etapas (`Dockerfile`): compila com `golang:1.27-alpine` e leva só o binário estático para uma `distroless/static` sem root, sem shell (~25 MB) |
+| Imagem | Duas etapas (`Dockerfile`): compila com `golang:1.27-alpine` e leva só o binário estático para uma `distroless/static` sem root, sem shell. **Montada no PC x86 para ARM sem emulação**: a etapa do Go roda na arquitetura do PC (`--platform=$BUILDPLATFORM`) e gera o binário para a da VM (`GOARCH=$TARGETARCH`) |
 | Memória | Contêiner limitado a 64 MB e `GOMEMLIMIT=48MiB`; medido: ~23 MB. Se passar, só ele reinicia |
-| Banco | No Postgres do Vigil, com banco e usuário `pursuit` próprios; o banco do Vigil passou a aceitar só o usuário dele (`revoke connect ... from public`). Até 3 conexões |
-| HTTPS | O Caddy do Vigil importa `~/vigil/sites/*.caddy`; o `publicar.sh` põe lá o `pursuit.caddy` e recarrega o Caddy sem derrubar o Vigil |
-| IP real | `PURSUIT_PROXY_CONFIAVEL` = a rede do Caddy: só dela o `X-Forwarded-For` vale (o limite de login conta por pessoa, não um limite só para todos) |
+| Banco | No Postgres do Beacon, com banco e usuário `pursuit` próprios; o banco do Beacon passou a aceitar só o usuário dele (`revoke connect ... from public`). Até 3 conexões |
+| HTTPS | O Caddy do Beacon importa `~/beacon/sites/*.caddy`; o `publicar.sh` põe lá o `pursuit.caddy` e recarrega o Caddy sem derrubar o Beacon |
+| IP real | `PURSUIT_PROXY_CONFIAVEL` = a rede interna do Beacon (`172.30.0.0/24`): só dela o `X-Forwarded-For` vale |
 | Saúde | `pursuit saude` (o healthcheck do Docker: a imagem não tem curl) e o Vigil confere `/saude` a cada 5 min |
 | Fusos | `time/tzdata` embutido: a imagem não tem o banco de fusos do sistema |
 | Backup | `backup.sh` no cron da VM às 3h20 (7 dias) e `trazer-backup.sh` no Agendador de Tarefas do Windows ("Pursuit - trazer backup", 30 dias no PC) |
 
 ```bash
-deploy/preparar-vm.sh    # uma vez: cria banco, usuário e o .env (segredos gerados e guardados só na VM)
-deploy/publicar.sh       # monta a imagem (exige git limpo; leva o commit), manda pela SSH e reinicia
+deploy/preparar-vm.sh    # uma vez: cria banco, usuário e o .env (senha gerada na VM; Telegram vem do .env do Vigil)
+deploy/publicar.sh       # monta a imagem ARM (exige git limpo; leva o commit), manda pela SSH e reinicia
 ssh -t ... 'cd pursuit && docker compose exec api /pursuit definir-senha andre'   # a conta
 ssh ... 'cd pursuit && docker compose exec api /pursuit telegram-teste'           # testa o Telegram
 ```
 
-**Plano:** quando sair a VM ARM (4 núcleos e 24 GB, também grátis, mas sem vaga em São Paulo por
-enquanto), o Pursuit muda para lá junto com o Beacon: `pg_dump`, a mesma imagem para ARM e o
-endereço novo no Caddy e no Vigil.
+**Como foi a mudança de VM:** o Pursuit parado na VM antiga (ninguém grava no meio), `pg_dump --no-owner`
+do banco, cópia no PC, restauração na VM nova como o usuário `pursuit`, contagem de linhas de cada tabela
+conferida nos dois lados, publicação e, só então, o endereço antigo virou um redirecionamento.
 
 ## Organização
 
