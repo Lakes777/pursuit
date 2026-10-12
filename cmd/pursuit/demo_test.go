@@ -89,3 +89,17 @@ func TestArgumentosDaDemo(t *testing.T) {
 		t.Error("semear-demo não leva argumentos")
 	}
 }
+
+// O caminho de verdade do comando: sem o modo, recusa ANTES de conectar ao banco (o endereço aqui
+// nem existe; se a ordem mudasse, o erro seria de conexão, e não a recusa)
+func TestSemearDemoPeloComandoRecusaAntesDeConectar(t *testing.T) {
+	t.Setenv("PURSUIT_DEMO", "")
+	t.Setenv("PURSUIT_BANCO_URL", "postgres://ninguem:nada@127.0.0.1:1/nenhum")
+
+	err := rodar(semLog, []string{"semear-demo"})
+
+	var recusa erroDeRecusa
+	if !errors.As(err, &recusa) {
+		t.Fatalf("err = %v", err)
+	}
+}

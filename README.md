@@ -251,7 +251,11 @@ entrar sem senha e mexer à vontade em dados de exemplo.
 - **Telegram desligado na demonstração,** mesmo com token: o visitante não pode fazer o bot mandar
   mensagens para mim. A tela de lembretes continua mostrando o que seria lembrado.
 - **Beacon opcional,** como no sistema de verdade: a demonstração do Pursuit aponta para a demonstração
-  do Beacon. Os links de exemplo são códigos inventados.
+  do Beacon, que semeia os mesmos códigos dos links de exemplo (a ficha mostra "Aberto N vezes").
+  **Sempre o endereço e a chave da demonstração do Beacon:** o visitante pode criar links, e com a chave
+  real criaria links no meu Beacon de verdade.
+- **O banco de verdade nunca é apagado,** mesmo que a demonstração aponte para ele por engano: com
+  candidaturas e sem a conta do visitante (que só existe na demonstração), a semeadura e a partida recusam.
 - `definir-senha` continua funcionando (para eu conferir a instância com a minha conta); o visitante não
   conta como "outra conta" ali, mas não pode receber senha.
 

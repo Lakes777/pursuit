@@ -243,3 +243,24 @@ func TestExemplosEmOrdem(t *testing.T) {
 		}
 	}
 }
+
+// O banco de verdade (com candidaturas e sem a conta do visitante) nunca é apagado, mesmo que a
+// instância de demonstração aponte para ele por engano
+func TestBancoRealNuncaEApagado(t *testing.T) {
+	pool := testebanco.Pool(t)
+	testebanco.Limpar(t, pool)
+	minha, err := candidaturas.NovoServico(pool).Criar(ctx, candidaturas.Dados{Empresa: "Empresa de verdade", Vaga: "Back-end"}, candidaturas.NovaEtapa{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Semear(ctx, pool, time.Now()); !errors.Is(err, ErrBancoReal) {
+		t.Errorf("Semear: err = %v", err)
+	}
+	if semeou, err := SemearSeVazio(ctx, pool, time.Now()); semeou || !errors.Is(err, ErrBancoReal) {
+		t.Errorf("SemearSeVazio: semeou = %v, err = %v", semeou, err)
+	}
+	if _, err := candidaturas.NovoServico(pool).Buscar(ctx, minha.ID); err != nil {
+		t.Errorf("a candidatura de verdade sumiu: %v", err)
+	}
+}

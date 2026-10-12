@@ -5,6 +5,7 @@ package demo
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,26 @@ var brasilia = func() *time.Location {
 	return local
 }()
 
+// ErrBancoReal: o banco tem candidaturas e não tem a conta do visitante. É o banco de verdade
+// (nele essa conta nunca existe), apontado por engano pela instância de demonstração: copiar o .env
+// da instância real e esquecer o PURSUIT_BANCO_URL faria a reposição de hora em hora apagar tudo.
+var ErrBancoReal = errors.New("o banco tem candidaturas e não tem a conta do visitante: parece o banco de verdade, " +
+	"e a demonstração não mexe nele (confira o PURSUIT_BANCO_URL da instância de demonstração)")
+
+// conferirBanco recusa o banco de verdade (ver ErrBancoReal). Um banco vazio pode ser semeado.
+func conferirBanco(ctx context.Context, q *bd.Queries) error {
+	total, err := q.ContarCandidaturas(ctx)
+	if err != nil || total == 0 {
+		return err
+	}
+	if _, err := q.BuscarUsuarioPorNome(ctx, contas.NomeDoVisitante); errors.Is(err, pgx.ErrNoRows) {
+		return ErrBancoReal
+	} else if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Semear apaga as candidaturas (com o histórico e os lembretes) e as sessões do visitante e
 // insere os exemplos, com datas relativas a agora. Tudo numa transação: quem estiver olhando
 // vê os dados antigos ou os novos, nunca o banco vazio no meio.
@@ -39,7 +60,8 @@ func Semear(ctx context.Context, pool *pgxpool.Pool, agora time.Time) error {
 }
 
 // SemearSeVazio semeia só se o banco não tem nenhuma candidatura (a primeira partida da
-// instância de demonstração). Devolve se semeou.
+// instância de demonstração). Devolve se semeou. Com candidaturas e sem a conta do visitante,
+// recusa (ErrBancoReal): a partida falha antes de a conta do visitante poder ser criada no banco real.
 func SemearSeVazio(ctx context.Context, pool *pgxpool.Pool, agora time.Time) (bool, error) {
 	semeou := false
 	err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
@@ -49,8 +71,11 @@ func SemearSeVazio(ctx context.Context, pool *pgxpool.Pool, agora time.Time) (bo
 			return err
 		}
 		total, err := q.ContarCandidaturas(ctx)
-		if err != nil || total > 0 {
+		if err != nil {
 			return err
+		}
+		if total > 0 {
+			return conferirBanco(ctx, q)
 		}
 		semeou = true
 		return semear(ctx, q, agora)
@@ -59,6 +84,9 @@ func SemearSeVazio(ctx context.Context, pool *pgxpool.Pool, agora time.Time) (bo
 }
 
 func semear(ctx context.Context, q *bd.Queries, agora time.Time) error {
+	if err := conferirBanco(ctx, q); err != nil {
+		return err
+	}
 	if err := q.ApagarCandidaturas(ctx); err != nil {
 		return err
 	}

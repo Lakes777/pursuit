@@ -90,7 +90,8 @@ $('entrar-visitante').addEventListener('click', async (evento) => {
 
 $('form-entrada').addEventListener('submit', async (evento) => {
   evento.preventDefault()
-  const botao = evento.submitter ?? evento.target.querySelector('button')
+  // O primeiro botão do formulário agora é o do visitante: sem submitter (navegador antigo), é o de senha
+  const botao = evento.submitter ?? $('entrar-senha')
   const erro = $('erro-entrada')
   erro.hidden = true
   botao.disabled = true
@@ -116,7 +117,8 @@ $('sair').addEventListener('click', async () => {
 })
 
 window.addEventListener('pursuit:sessao-expirou', () => {
-  avisar('A sessão expirou. Entre de novo.', 'erro')
+  // Na demonstração, a sessão cai na reposição de hora em hora: dizer o que aconteceu de verdade
+  avisar(demo ? 'A demonstração voltou ao original. Entre de novo.' : 'A sessão expirou. Entre de novo.', 'erro')
   mostrarEntrada()
 })
 
