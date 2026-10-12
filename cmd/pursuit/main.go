@@ -6,6 +6,7 @@
 //	pursuit definir-senha <nome>   cria a conta ou troca a senha (pergunta a senha escondida)
 //	pursuit saude                  confere se a API responde (o healthcheck do Docker)
 //	pursuit telegram-teste         manda uma mensagem de teste pelo Telegram configurado
+//	pursuit semear-demo            põe os dados de exemplo de volta (só com PURSUIT_DEMO=true)
 package main
 
 import (
@@ -30,6 +31,7 @@ import (
 	"github.com/Lakes777/pursuit/internal/candidaturas"
 	"github.com/Lakes777/pursuit/internal/config"
 	"github.com/Lakes777/pursuit/internal/contas"
+	"github.com/Lakes777/pursuit/internal/demo"
 	"github.com/Lakes777/pursuit/internal/lembretes"
 	"github.com/Lakes777/pursuit/internal/numeros"
 	"github.com/Lakes777/pursuit/internal/telegram"
@@ -42,6 +44,11 @@ func main() {
 		if errors.As(err, &uso) {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
+		}
+		var recusa erroDeRecusa
+		if errors.As(err, &recusa) {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
 		log.Error("o Pursuit parou com erro", "erro", err)
 		os.Exit(1)
@@ -59,7 +66,7 @@ func rodar(log *slog.Logger, args []string) error {
 	}
 	// Argumentos errados: o uso, antes de tentar qualquer conexão
 	if !argumentosValidos(args) {
-		return erroDeUso("Uso: pursuit [definir-senha <nome> | saude | telegram-teste]")
+		return erroDeUso("Uso: pursuit [definir-senha <nome> | saude | telegram-teste | semear-demo]")
 	}
 	// Os comandos que não precisam do banco vêm antes de conectar
 	if len(args) > 0 {
@@ -76,6 +83,11 @@ func rodar(log *slog.Logger, args []string) error {
 			}
 			fmt.Fprintln(os.Stderr, "Mensagem de teste enviada.")
 			return nil
+		case "semear-demo":
+			// A recusa vem antes de conectar: sem o modo demonstração, o banco nem é aberto
+			if !cfg.Demo {
+				return semearDemo(ctx, false, nil, os.Stderr)
+			}
 		}
 	}
 	pool, err := banco.Conectar(ctx, cfg.BancoURL)
@@ -87,23 +99,33 @@ func rodar(log *slog.Logger, args []string) error {
 		return err
 	}
 	servicoDeContas := contas.NovoServico(pool)
+	if cfg.Demo {
+		servicoDeContas = servicoDeContas.ComVisitante()
+	}
 
-	if len(args) > 0 { // definir-senha (os outros já voltaram)
+	if len(args) > 0 {
+		if args[0] == "semear-demo" {
+			return semearDemo(ctx, cfg.Demo, pool, os.Stderr)
+		}
+		// definir-senha (os outros já voltaram)
 		return definirSenha(ctx, servicoDeContas, args[1], os.Stdin, os.Stderr)
 	}
 
-	// Lembretes pelo Telegram: sem token e sem chat, ficam desligados (a prévia continua na API).
-	// Com só um dos dois, ou com o token mal escrito, a API nem sobe: senão eu passaria semanas
-	// sem lembrete achando que estava tudo certo.
-	var enviador lembretes.Enviador
-	if cfg.TelegramToken == "" && cfg.TelegramChat == "" {
-		log.Warn("lembretes pelo Telegram desligados (sem PURSUIT_TELEGRAM_TOKEN e PURSUIT_TELEGRAM_CHAT)")
-	} else {
-		cliente, err := telegram.Novo(cfg.TelegramURL, cfg.TelegramToken, cfg.TelegramChat)
+	// Demonstração: na primeira partida (banco sem candidaturas), os exemplos entram sozinhos;
+	// depois, quem repõe é o cron de hora em hora (semear-demo)
+	if cfg.Demo {
+		semeou, err := demo.SemearSeVazio(ctx, pool, time.Now())
 		if err != nil {
-			return fmt.Errorf("configuração do Telegram: %w", err)
+			return fmt.Errorf("semear a demonstração: %w", err)
 		}
-		enviador = cliente
+		if semeou {
+			log.Info("demonstração semeada com os dados de exemplo")
+		}
+	}
+
+	enviador, err := montarEnviador(cfg, log)
+	if err != nil {
+		return err
 	}
 	servicoDeLembretes := lembretes.NovoServico(pool, enviador)
 
@@ -128,7 +150,7 @@ func rodar(log *slog.Logger, args []string) error {
 		Handler: api.Novo(api.Dependencias{
 			Banco: pool, Candidaturas: candidaturas.NovoServico(pool), Contas: servicoDeContas,
 			Numeros: numeros.NovoServico(pool), Lembretes: servicoDeLembretes, Beacon: clienteDoBeacon,
-			Limite: contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Proxies: cfg.ProxiesConfiaveis, Log: log,
+			Limite: contas.NovoLimite(cfg.LoginPorMinuto), CookieSeguro: cfg.CookieSeguro, Proxies: cfg.ProxiesConfiaveis, Demo: cfg.Demo, Log: log,
 		}),
 		// Sem limites, um cliente lento seguraria uma conexão para sempre (Slowloris)
 		ReadHeaderTimeout: 5 * time.Second,
@@ -180,13 +202,13 @@ func rodar(log *slog.Logger, args []string) error {
 	return nil
 }
 
-// argumentosValidos: nenhum (sobe a API), "saude", "telegram-teste" ou "definir-senha <nome>".
+// argumentosValidos: nenhum (sobe a API), "saude", "telegram-teste", "semear-demo" ou "definir-senha <nome>".
 func argumentosValidos(args []string) bool {
 	if len(args) == 0 {
 		return true
 	}
 	switch args[0] {
-	case "saude", "telegram-teste":
+	case "saude", "telegram-teste", "semear-demo":
 		return len(args) == 1
 	case "definir-senha":
 		return len(args) == 2
