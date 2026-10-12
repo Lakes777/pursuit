@@ -2,6 +2,8 @@
 # Backup diário do banco do Pursuit, rodado pelo cron da VM (veja "Publicação" no README).
 # O banco mora no Postgres do Beacon. Guarda os últimos 7 dias em ~/pursuit/backups.
 set -euo pipefail
+# O backup tem o hash da senha e as candidaturas: só o dono da pasta lê
+umask 077
 
 cd "$(dirname "$0")"
 mkdir -p backups
