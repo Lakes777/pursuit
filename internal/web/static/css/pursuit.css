@@ -86,6 +86,15 @@ textarea { min-height: 110px; resize: vertical }
 .cartao-entrada h1 { font-size: 1.8rem }
 .cartao-entrada .sub { color: var(--apagado); margin: 0 0 10px }
 .cartao-entrada button { margin-top: 10px; justify-content: center }
+/* Demonstração: o botão do visitante em destaque, acima do formulário de senha */
+.visitante { display: grid; gap: 8px }
+.visitante button { margin-top: 0 }
+.sobre-visitante { color: var(--apagado); font-size: .88rem; margin: 0 }
+.separador { display: flex; align-items: center; gap: 10px; color: var(--apagado); font-size: .8rem; margin: 10px 0 2px }
+.separador::before, .separador::after { content: ""; flex: 1; border-top: 1px solid var(--linha) }
+/* A faixa da demonstração: discreta, no tom das fichas, sem disputar com a barra */
+.faixa-demo { margin: 0; padding: 6px var(--gutter); background: var(--ficha); border-bottom: 1px solid var(--linha);
+  color: var(--verde-claro); font-size: .82rem; text-align: center }
 .logo-grande { width: 48px; height: 48px }
 
 /* Barra do topo */

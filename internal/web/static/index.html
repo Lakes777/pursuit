@@ -35,16 +35,23 @@
       <svg class="logo-grande" aria-hidden="true"><use href="#i-logo"/></svg>
       <h1>Pursuit</h1>
       <p class="sub">Entre para ver as suas candidaturas.</p>
+      <!-- Só na demonstração (GET /api/demo): entrar sem senha, na conta de exemplo -->
+      <div class="visitante" id="bloco-visitante" hidden>
+        <button type="button" class="botao principal" id="entrar-visitante" aria-describedby="sobre-visitante">Entrar como visitante</button>
+        <p class="sobre-visitante" id="sobre-visitante">Uma demonstração com dados de exemplo: dá para mover, editar e apagar à vontade.</p>
+        <p class="separador"><span>ou entre com senha</span></p>
+      </div>
       <label for="usuario">Usuário</label>
       <input id="usuario" name="usuario" autocomplete="username" autocapitalize="none" spellcheck="false" required>
       <label for="senha">Senha</label>
       <input id="senha" name="senha" type="password" autocomplete="current-password" required>
       <p class="erro" id="erro-entrada" role="alert" hidden></p>
-      <button type="submit" class="botao principal">Entrar</button>
+      <button type="submit" class="botao principal" id="entrar-senha">Entrar</button>
     </form>
   </main>
 
   <div class="app" id="app" hidden>
+    <p class="faixa-demo" id="faixa-demo" hidden>Demonstração: dados de exemplo, que voltam ao original a cada hora.</p>
     <header class="barra">
       <a class="marca" href="#/quadro"><svg aria-hidden="true"><use href="#i-logo"/></svg>Pursuit</a>
       <nav class="menu" aria-label="Seções">

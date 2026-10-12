@@ -12,6 +12,8 @@ import './telas/lembretes.js'
 
 const $ = (id) => document.getElementById(id)
 let etapas = []
+// Modo demonstração (GET /api/demo): botão de visitante na entrada e a faixa no topo do app
+let demo = false
 let limparTela = null
 // Contador de navegação: uma resposta que chega depois de o usuário já ter mudado de tela é ignorada
 let navegacao = 0
@@ -38,6 +40,13 @@ function avisar(texto, tipo = 'ok') {
 }
 
 async function iniciar() {
+  // Pergunta antes da sessão, para a entrada já abrir com o botão. Sem resposta, segue sem a
+  // demonstração: o login de sempre continua funcionando
+  demo = (await api('GET', '/api/demo').catch(() => null))?.demo === true
+  $('faixa-demo').hidden = !demo
+  $('bloco-visitante').hidden = !demo
+  // Um botão principal só: na demonstração, o destaque é do visitante
+  $('entrar-senha').classList.toggle('principal', !demo)
   try {
     await api('GET', '/api/sessao')
     await abrirApp()
@@ -59,8 +68,25 @@ function mostrarEntrada() {
   limparTela = null
   $('app').hidden = true
   $('entrada').hidden = false
-  $('usuario').focus()
+  ;(demo ? $('entrar-visitante') : $('usuario')).focus()
 }
+
+$('entrar-visitante').addEventListener('click', async (evento) => {
+  const botao = evento.currentTarget
+  const erro = $('erro-entrada')
+  erro.hidden = true
+  botao.disabled = true
+  try {
+    await api('POST', '/api/sessao/visitante')
+    $('entrada').hidden = true
+    await abrirApp()
+  } catch (e) {
+    erro.textContent = e.status === 429 ? 'Tentativas demais. Espere um minuto e tente de novo.' : e.message
+    erro.hidden = false
+  } finally {
+    botao.disabled = false
+  }
+})
 
 $('form-entrada').addEventListener('submit', async (evento) => {
   evento.preventDefault()
