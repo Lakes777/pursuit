@@ -43,6 +43,8 @@ type Usuario struct {
 type Servico struct {
 	pool  *pgxpool.Pool
 	agora func() time.Time
+	// visitante: modo demonstração, com a conta sem senha "visitante" (ver visitante.go)
+	visitante bool
 }
 
 // NovoServico usa o relógio de verdade.
@@ -87,6 +89,14 @@ func (s *Servico) DefinirSenha(ctx context.Context, nome, senha string) error {
 	if err := ConferirSenhaNova(senha); err != nil {
 		return err
 	}
+	// Na demonstração, o visitante é uma conta sem senha e continua assim
+	var ignorar []string
+	if s.visitante {
+		if nome == NomeDoVisitante {
+			return ErrNomeReservado
+		}
+		ignorar = []string{NomeDoVisitante}
+	}
 	hash, err := hashDeSenha(senha)
 	if err != nil {
 		return err
@@ -94,11 +104,12 @@ func (s *Servico) DefinirSenha(ctx context.Context, nome, senha string) error {
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		q := bd.New(tx)
 		// A trava da tabela faz dois definir-senha com nomes diferentes ao mesmo tempo não
-		// criarem duas contas
+		// criarem duas contas. Na demonstração, o visitante não conta: os dados ali são de
+		// exemplo, e a minha conta (para conferir a instância) convive com a dele.
 		if _, err := tx.Exec(ctx, "lock table usuario in share row exclusive mode"); err != nil {
 			return err
 		}
-		outras, err := q.ContarOutrasContas(ctx, nome)
+		outras, err := q.ContarOutrasContas(ctx, bd.ContarOutrasContasParams{Nome: nome, Ignorar: ignorar})
 		if err != nil {
 			return err
 		}
@@ -120,7 +131,9 @@ func (s *Servico) Entrar(ctx context.Context, nome, senha string) (string, Usuar
 	nome, errNome := NormalizarNome(nome)
 	usuario, err := q.BuscarUsuarioPorNome(ctx, nome)
 	guardado := usuario.SenhaHash
-	if errNome != nil || errors.Is(err, pgx.ErrNoRows) {
+	// A conta sem senha (o visitante da demonstração) é tratada como um nome que não existe:
+	// mesma resposta e mesmo tempo, e nenhum 500 por um hash que não é argon2id
+	if errNome != nil || errors.Is(err, pgx.ErrNoRows) || (err == nil && guardado == semSenha) {
 		guardado = hashDeMentira
 	} else if err != nil {
 		return "", Usuario{}, err

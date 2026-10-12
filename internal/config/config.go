@@ -32,6 +32,9 @@ type Config struct {
 	BeaconDestino string // vazio = o portfólio
 	// ProxiesConfiaveis: de onde o X-Forwarded-For vale (a rede do Caddy, em produção)
 	ProxiesConfiaveis []netip.Prefix
+	// Demo: modo demonstração (PURSUIT_DEMO=true). Desligado por padrão; só a segunda instância,
+	// com banco próprio, liga: entrada como visitante, dados de exemplo e Telegram desligado.
+	Demo bool
 }
 
 // Padrões para o compose.yaml da raiz (Postgres na porta 5435).
@@ -57,6 +60,12 @@ func Carregar(ler func(string) string) (Config, error) {
 		return Config{}, errors.New("PURSUIT_LOGIN_POR_MINUTO deve ser um número a partir de 1")
 	}
 	c.LoginPorMinuto = porMinuto
+	demo, err := strconv.ParseBool(valorOuPadrao(ler("PURSUIT_DEMO"), "false"))
+	if err != nil {
+		// Um valor estranho não vira "desligado" em silêncio: o servidor nem sobe
+		return Config{}, errors.New("PURSUIT_DEMO deve ser true ou false")
+	}
+	c.Demo = demo
 	c.TelegramToken = strings.TrimSpace(ler("PURSUIT_TELEGRAM_TOKEN"))
 	c.TelegramChat = strings.TrimSpace(ler("PURSUIT_TELEGRAM_CHAT"))
 	c.TelegramURL = strings.TrimSpace(ler("PURSUIT_TELEGRAM_URL"))

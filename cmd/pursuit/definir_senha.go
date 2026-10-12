@@ -55,7 +55,7 @@ func definirSenha(ctx context.Context, s *contas.Servico, nome string, entrada *
 	if err := contas.ConferirSenhaNova(senha); err != nil {
 		return erroDeUso(err.Error())
 	}
-	if err := s.DefinirSenha(ctx, nome, senha); errors.Is(err, contas.ErrOutraConta) {
+	if err := s.DefinirSenha(ctx, nome, senha); errors.Is(err, contas.ErrOutraConta) || errors.Is(err, contas.ErrNomeReservado) {
 		return erroDeUso(err.Error())
 	} else if err != nil {
 		return err

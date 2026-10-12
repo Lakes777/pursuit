@@ -81,11 +81,18 @@ func (q *Queries) BuscarUsuarioPorNome(ctx context.Context, nome string) (Usuari
 }
 
 const contarOutrasContas = `-- name: ContarOutrasContas :one
-select count(*) from usuario where nome <> $1
+select count(*) from usuario where nome <> $1 and nome <> all(coalesce($2::text[], '{}'))
 `
 
-func (q *Queries) ContarOutrasContas(ctx context.Context, nome string) (int64, error) {
-	row := q.db.QueryRow(ctx, contarOutrasContas, nome)
+type ContarOutrasContasParams struct {
+	Nome    string
+	Ignorar []string
+}
+
+// @ignorar: nomes que não contam como "outra conta" (na demonstração, a conta do visitante).
+// O coalesce protege do null (uma lista nil do Go): "nome <> all(null)" daria null e contaria zero.
+func (q *Queries) ContarOutrasContas(ctx context.Context, arg ContarOutrasContasParams) (int64, error) {
+	row := q.db.QueryRow(ctx, contarOutrasContas, arg.Nome, arg.Ignorar)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

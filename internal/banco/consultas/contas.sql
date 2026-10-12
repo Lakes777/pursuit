@@ -2,7 +2,9 @@
 select * from usuario where nome = @nome;
 
 -- name: ContarOutrasContas :one
-select count(*) from usuario where nome <> @nome;
+-- @ignorar: nomes que não contam como "outra conta" (na demonstração, a conta do visitante).
+-- O coalesce protege do null (uma lista nil do Go): "nome <> all(null)" daria null e contaria zero.
+select count(*) from usuario where nome <> @nome and nome <> all(coalesce(@ignorar::text[], '{}'));
 
 -- name: DefinirSenha :one
 -- Cria a conta ou troca a senha de uma que já existe.

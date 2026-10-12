@@ -110,3 +110,23 @@ func TestBeacon(t *testing.T) {
 		t.Errorf("c = %+v", c)
 	}
 }
+
+func TestDemo(t *testing.T) {
+	ler := func(valor string) func(string) string {
+		return func(nome string) string {
+			if nome == "PURSUIT_DEMO" {
+				return valor
+			}
+			return ""
+		}
+	}
+	for valor, esperado := range map[string]bool{"": false, "false": false, "true": true, " true ": true, "1": true} {
+		c, err := Carregar(ler(valor))
+		if err != nil || c.Demo != esperado {
+			t.Errorf("PURSUIT_DEMO=%q: demo = %v, err = %v", valor, c.Demo, err)
+		}
+	}
+	if _, err := Carregar(ler("sim")); err == nil {
+		t.Error("PURSUIT_DEMO=sim deveria dar erro")
+	}
+}
