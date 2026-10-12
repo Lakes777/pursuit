@@ -13,7 +13,9 @@ dizer se a empresa abriu o link do meu portfólio.
 
 **No ar:** https://pursuit.159-112-189-95.sslip.io (uso pessoal, com login)
 
-![Quadro do Pursuit: uma pasta por etapa, com as fichas das candidaturas; as paradas em âmbar](docs/quadro.png)
+![Pursuit em uso: a ficha da Stone arrastada de Triagem para Entrevista, com a observação; a ficha da Nubank, cujo link do portfólio já foi aberto 4 vezes; e os números do funil](docs/demo.gif)
+
+*Demonstração com dados de exemplo. O sistema no ar é de uso pessoal e pede login.*
 
 ## Fases
 
