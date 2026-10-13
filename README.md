@@ -11,7 +11,8 @@ dizer se a empresa abriu o link do meu portfólio.
 
 É o meu primeiro projeto em **Go**.
 
-**No ar:** https://pursuit.159-112-189-95.sslip.io (uso pessoal, com login)
+**Demonstração:** https://demo-pursuit.159-112-189-95.sslip.io (entre como visitante; os dados de exemplo voltam ao original a cada hora)
+· **No ar:** https://pursuit.159-112-189-95.sslip.io (uso pessoal, com login)
 
 ![Pursuit em uso: a ficha da Stone arrastada de Triagem para Entrevista, com a observação; a ficha da Nubank, cujo link do portfólio já foi aberto 4 vezes; e os números do funil](docs/demo.gif)
 
