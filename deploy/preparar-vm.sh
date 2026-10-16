@@ -9,7 +9,7 @@ set -euo pipefail
 VM="${VM:-ubuntu@159.112.189.95}"
 VM_DO_VIGIL="${VM_DO_VIGIL:-ubuntu@147.15.40.173}"
 CHAVE_SSH="${CHAVE_SSH:-$HOME/.ssh/oracle_bot}"
-DOMINIO_BEACON="${DOMINIO_BEACON:-159-112-189-95.sslip.io}"
+DOMINIO_BEACON="${DOMINIO_BEACON:-beacon.andrelagos.dev}"
 
 if ssh -i "$CHAVE_SSH" "$VM" "test -f pursuit/.env"; then
 	echo "O ~/pursuit/.env já existe na VM: nada a fazer."

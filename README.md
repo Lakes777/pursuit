@@ -11,8 +11,8 @@ dizer se a empresa abriu o link do meu portfólio.
 
 É o meu primeiro projeto em **Go**.
 
-**Demonstração:** https://demo-pursuit.159-112-189-95.sslip.io (entre como visitante; os dados de exemplo voltam ao original a cada hora)
-· **No ar:** https://pursuit.159-112-189-95.sslip.io (uso pessoal, com login)
+**Demonstração:** https://demo-pursuit.andrelagos.dev (entre como visitante; os dados de exemplo voltam ao original a cada hora)
+· **No ar:** https://pursuit.andrelagos.dev (uso pessoal, com login)
 
 ![Pursuit em uso: a ficha da Stone arrastada de Triagem para Entrevista, com a observação; a ficha da Nubank, cujo link do portfólio já foi aberto 4 vezes; e os números do funil](docs/demo.gif)
 
@@ -85,7 +85,7 @@ Configuração por variáveis de ambiente:
 | `PURSUIT_TELEGRAM_URL` | (vazio) | Endereço da API do Telegram; vazio = `api.telegram.org` (só os testes trocam) |
 | `PURSUIT_BEACON_URL` | (vazio) | Endereço do [Beacon](https://github.com/Lakes777/beacon). Sem ele e sem a chave, os links ficam desligados |
 | `PURSUIT_BEACON_CHAVE` | (vazio) | A chave de integração do Beacon (`Integracao__Chave` lá). Os dois vazios desligam; só um, ou uma chave curta, impede a API de subir |
-| `PURSUIT_BEACON_DESTINO` | `https://lakes777.github.io` | Para onde os links levam |
+| `PURSUIT_BEACON_DESTINO` | `https://andrelagos.dev` | Para onde os links levam |
 | `PURSUIT_PROXY_CONFIAVEL` | (vazio) | De onde o `X-Forwarded-For` vale (a rede do Caddy), faixas separadas por vírgula |
 | `PURSUIT_DEMO` | `false` | Modo [demonstração](#demonstração): entrada como visitante, dados de exemplo, Telegram desligado. Só na instância separada |
 
@@ -244,7 +244,7 @@ entrar sem senha e mexer à vontade em dados de exemplo.
   conectar ao banco, porque ele começa apagando tudo.
 - **Primeira partida:** com o modo ligado e o banco sem candidaturas, a API semeia sozinha ao subir.
 - **Na VM:** em `~/pursuit-demo`, ao lado da real (`deploy/compose.demo.yaml`, banco `pursuit_demo` no
-  Postgres do Beacon, site `demo-pursuit.159-112-189-95.sslip.io`). `deploy/preparar-demo.sh` cria o banco e o
+  Postgres do Beacon, site `demo-pursuit.andrelagos.dev`). `deploy/preparar-demo.sh` cria o banco e o
   `.env` uma vez; o `publicar.sh` reinicia a demo junto com a real.
 - **De hora em hora,** junto com a demo do Beacon (primeiro a dele), pelo `~/repor-demos.sh` no cron da VM
   (`0 * * * * ~/repor-demos.sh >> ~/repor-demos.log 2>&1`), que roda

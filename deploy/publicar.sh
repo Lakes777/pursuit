@@ -5,8 +5,8 @@ set -euo pipefail
 
 VM="${VM:-ubuntu@159.112.189.95}"
 CHAVE_SSH="${CHAVE_SSH:-$HOME/.ssh/oracle_bot}"
-DOMINIO="${DOMINIO:-pursuit.159-112-189-95.sslip.io}"
-DOMINIO_DEMO="${DOMINIO_DEMO:-demo-pursuit.159-112-189-95.sslip.io}"
+DOMINIO="${DOMINIO:-pursuit.andrelagos.dev}"
+DOMINIO_DEMO="${DOMINIO_DEMO:-demo-pursuit.andrelagos.dev}"
 cd "$(dirname "$0")/.."
 
 # Só publica o que está no git: a imagem leva o commit, e dá para saber o que está no ar

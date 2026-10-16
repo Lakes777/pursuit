@@ -130,7 +130,7 @@ func quando(p Passo, agora time.Time) time.Time {
 // DominioDoBeacon: os links de exemplo apontam para a demonstração do Beacon, que semeia estes mesmos
 // códigos com alguns cliques (a ficha mostra "Aberto N vezes"). Nenhum link real aparece aqui.
 // Os códigos seguem as regras do Beacon: 7 caracteres, minúsculas, sem l, o, 0 e 1.
-const DominioDoBeacon = "https://demo-beacon.159-112-189-95.sslip.io/r/"
+const DominioDoBeacon = "https://demo-beacon.andrelagos.dev/r/"
 
 func urlDoBeacon(codigo string) *string {
 	if codigo == "" {

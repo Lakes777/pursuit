@@ -22,7 +22,7 @@ import (
 const DiasDeCliques = 365
 
 // DestinoPadrao: para onde os links levam, se PURSUIT_BEACON_DESTINO não disser outro.
-const DestinoPadrao = "https://lakes777.github.io"
+const DestinoPadrao = "https://andrelagos.dev"
 
 var (
 	// ErrSemConfiguracao: faltou o endereço ou a chave (a integração fica desligada).
