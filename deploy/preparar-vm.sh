@@ -37,7 +37,7 @@ rede=$(docker network inspect -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}' beac
 chave=$(grep '^INTEGRACAO_CHAVE=' ~/beacon/.env | cut -d= -f2-)
 umask 077
 cat > ~/pursuit/.env <<ENV
-PURSUIT_BANCO_URL=postgres://pursuit:$senha@banco:5432/pursuit?pool_max_conns=3
+PURSUIT_BANCO_URL=postgres://pursuit:$senha@beacon-banco:5432/pursuit?pool_max_conns=3
 PURSUIT_TELEGRAM_TOKEN=$token
 PURSUIT_TELEGRAM_CHAT=$chat
 PURSUIT_PROXY_CONFIAVEL=$rede

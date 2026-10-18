@@ -29,7 +29,7 @@ chave=$(grep '^INTEGRACAO_CHAVE_DEMO=' ~/beacon/.env | cut -d= -f2-)
 umask 077
 cat > ~/pursuit-demo/.env <<ENV
 PURSUIT_DEMO=true
-PURSUIT_BANCO_URL=postgres://pursuit_demo:$senha@banco:5432/pursuit_demo?pool_max_conns=3
+PURSUIT_BANCO_URL=postgres://pursuit_demo:$senha@beacon-banco:5432/pursuit_demo?pool_max_conns=3
 PURSUIT_PROXY_CONFIAVEL=$rede
 PURSUIT_BEACON_URL=https://$dominio_beacon
 PURSUIT_BEACON_CHAVE=$chave
